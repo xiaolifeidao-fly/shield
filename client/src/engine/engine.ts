@@ -6,11 +6,8 @@ import { app, screen as electronScreen } from 'electron';
 import { DoorEntity } from './entity';
 import log from 'electron-log';
 import os from 'os';
-import { injectAntiDetectionScripts } from './inject';
 import { env } from 'process';
-import { Monitor, MonitorChain, MonitorRequest, MonitorResponse } from '../monitor/monitor';
-import { ProxyService } from '../proxy/proxy.service';
-import { buildCKData } from '../model/dy.web.device';
+import { Monitor, MonitorChain, MonitorRequest, MonitorResponse } from './monitor/monitor';
 
 declare const window: any;
 declare const navigator: any;
@@ -399,20 +396,6 @@ export abstract class DoorEngine<T = any> {
             locale: 'zh-CN',
         };
         
-        // 获取代理配置
-        try {
-            const proxyService = ProxyService.getInstance();
-            const proxyConfig = await proxyService.getPlaywrightProxyConfig(this.resourceId);
-            
-            if (proxyConfig) {
-                log.info(`[Engine] 为持久化浏览器上下文应用代理配置: ${JSON.stringify(proxyConfig)}`);
-                contextConfig.proxy = proxyConfig;
-            } else {
-                log.info('[Engine] 持久化上下文未使用代理配置');
-            }
-        } catch (error) {
-            log.error('[Engine] 应用持久化上下文代理配置失败:', error);
-        }
         
         const context = await chromium.launchPersistentContext(userDataDir, contextConfig);
         contextMap.set(key, context);
@@ -665,17 +648,6 @@ export abstract class DoorEngine<T = any> {
         return null;
     }
 
-    public async getCkJson(){
-        const sessionPath = await this.getSessionPath();
-        if(sessionPath){
-            const ckData = buildCKData(sessionPath);
-            if(ckData){
-                return JSON.parse(ckData);
-            }
-        }
-        return undefined;
-    }
-
     public getLastSessionDir(){
         const userDataPath = app.getPath('userData');
 
@@ -844,22 +816,6 @@ export abstract class DoorEngine<T = any> {
             };
         }
 
-
-        // 获取代理配置
-        try {
-            const proxyService = ProxyService.getInstance();
-            const proxyConfig = await proxyService.getPlaywrightProxyConfig(this.resourceId);
-            
-            if (proxyConfig) {
-                log.info(`[Engine] 为浏览器上下文应用代理配置: ${JSON.stringify(proxyConfig)}`);
-                contextConfig.proxy = proxyConfig;
-            } else {
-                log.info('[Engine] 未使用代理配置');
-            }
-        } catch (error) {
-            log.error('[Engine] 应用代理配置失败:', error);
-        }
-        
         const context = await this.browser?.newContext(contextConfig);
         contextMap.set(key, context);
         return context;

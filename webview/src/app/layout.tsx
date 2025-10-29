@@ -1,6 +1,6 @@
 export const metadata = {
-  title: 'x助手',
-  description: 'x助手',
+  title: 'shield',
+  description: 'shield',
 }
 
 export default function RootLayout({

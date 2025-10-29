@@ -2,7 +2,7 @@ import { Page, Route , Request, BrowserContext, Response} from "playwright";
 import { EventEmitter } from 'events';
 import { getUrlParameter } from "@utils/url.util";
 import log from "electron-log";
-import { DoorEntity } from "../dy/entity";
+import { DoorEntity } from "../entity";
 
 export abstract class Monitor<T = any> {
 
