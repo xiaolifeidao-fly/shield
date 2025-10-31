@@ -9,7 +9,7 @@
 ## 方法签名
 
 ```ts
-async function writeCase(caseDetail: CaseDetail, loanPlan: LoanPlan[], customerInfo: CustomerInfo): Promise<void>
+async function writeCase(caseDetail: CaseDetail, loanPlan: LoanPlan[], customerInfo: CustomerInfo, businessType: BusinessType | undefined): Promise<void>
 ```
 
 ## 入参说明
@@ -17,6 +17,7 @@ async function writeCase(caseDetail: CaseDetail, loanPlan: LoanPlan[], customerI
 - caseDetail: 案件详情对象，类型为 `CaseDetail`。注意 `mobile`、`backupMobile` 在调用本函数前已被解密为明文。
 - loanPlan: 还款计划数组，元素类型为 `LoanPlan`，可能为空数组。
 - customerInfo: 客户信息对象，类型为 `CustomerInfo`。
+- businessType: 业务类型，用于设置 `loanSource` 字段的值。类型为 `BusinessType | undefined`，可选。
 
 ---
 
@@ -67,6 +68,7 @@ async function writeCase(caseDetail: CaseDetail, loanPlan: LoanPlan[], customerI
 | expireVatAmount | number | 逾期增值税额 |
 | backupMobile | string | 备用手机号（明文） |
 | createTime | string | 创建时间（ISO 字符串） |
+| loanSource | string \| null | 贷款来源，值等于 `businessType`（如 'adapundi' 或 'singa'） |
 
 ---
 
@@ -145,5 +147,6 @@ async function writeCase(caseDetail: CaseDetail, loanPlan: LoanPlan[], customerI
 - 在进入 `writeCase` 前，手机号相关字段会通过解密接口替换为明文，`writeCase` 无需再做解密。
 - 还款计划获取失败时可能传入空数组，需容错处理。
 - 客户信息会在调用 `writeCase` 前获取，获取失败会抛出错误。
+- `writeCase` 函数会在写入的数据中添加 `loanSource` 字段，其值等于传入的 `businessType` 参数。如果 `businessType` 为 `undefined`，则 `loanSource` 为 `null`。
 
 

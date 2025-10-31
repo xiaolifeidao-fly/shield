@@ -3,7 +3,7 @@ import { getGlobal, setGlobal } from "../../../../../common/utils/store/electron
 import { getLoanPlan, LoanPlan } from "../api/loan.api";
 import { decryptPhone, AuditDataType } from "../api/phone.api";
 import { getCustomerInfo, CustomerInfo } from "../api/customer.api";
-import { SyncStats } from "@eleapi/user/user.api";
+import { SyncStats, UserInfo, BusinessType } from "@eleapi/user/user.api";
 
 /**
  * 同步缓存数据结构
@@ -107,13 +107,40 @@ function saveUserSyncStats(username: string, stats: SyncStats): void {
 }
 
 /**
+ * 获取用户信息
+ */
+function getUserInfo(username: string): UserInfo | null {
+  const USER_LIST_KEY = "userList";
+  const userList = getGlobal(USER_LIST_KEY);
+  if (!userList || !Array.isArray(userList)) {
+    return null;
+  }
+  return userList.find((u: UserInfo) => u.username === username) || null;
+}
+
+/**
  * 写入案例数据（待后续填充实现）
  * @param caseDetail 案例详情（手机号已解密为明文）
  * @param loanPlan 还款计划列表
  * @param customerInfo 客户信息
+ * @param businessType 业务类型（用于设置 loanSource）
  */
-async function writeCase(caseDetail: CaseDetail, loanPlan: LoanPlan[], customerInfo: CustomerInfo): Promise<void> {
+async function writeCase(
+  caseDetail: CaseDetail, 
+  loanPlan: LoanPlan[], 
+  customerInfo: CustomerInfo,
+  businessType: BusinessType | undefined
+): Promise<void> {
+  // 添加 loanSource 字段，值等于 businessType
+  const caseDataWithLoanSource = {
+    ...caseDetail,
+    loanSource: businessType || null,
+  };
+  
   // TODO: 等待后续填充实现
+  // 这里应该使用 caseDataWithLoanSource 进行实际的数据写入操作
+  console.log('Writing case with loanSource:', caseDataWithLoanSource.loanSource);
+  
   return Promise.resolve();
 }
 
@@ -225,8 +252,12 @@ async function syncSingleCase(
       throw new Error(`Failed to get customer info for customer ${caseDetail.customerId}`);
     }
 
+    // 获取用户的 businessType
+    const userInfo = getUserInfo(username);
+    const businessType = userInfo?.businessType;
+
     // 写入案例数据（使用解密后的数据）
-    await writeCase(decryptedCaseDetail, loanPlan, customerInfo);
+    await writeCase(decryptedCaseDetail, loanPlan, customerInfo, businessType);
 
     // 更新缓存：记录今天已同步
     updateCache(cache, caseItem.caseId);
