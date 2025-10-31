@@ -9,6 +9,7 @@ import log from 'electron-log';
 import { registerRpc } from './register/rpc';
 import { init } from './store';
 import Store from 'electron-store';
+import { initializeScheduledTasks } from '@src/task/task';
 // 使用安全服务器替代普通服务器
 
 
@@ -80,6 +81,16 @@ export const start = () => {
         registerFileProtocol();
 
         await createDefaultWindow();
+        
+        // 初始化定时任务
+        setTimeout(async () => {
+          try {
+            await initializeScheduledTasks();
+            log.info("Scheduled tasks initialized successfully");
+          } catch (e) {
+            log.error("Failed to initialize scheduled tasks:", e);
+          }
+        }, 2000); // 延迟2秒，确保 RPC 注册完成
       } catch (e) {
         log.error("ready createDefaultWindow error", e);
       }

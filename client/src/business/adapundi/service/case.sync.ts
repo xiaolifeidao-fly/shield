@@ -134,6 +134,8 @@ async function writeCase(
   // 添加 loanSource 字段，值等于 businessType
   const caseDataWithLoanSource = {
     ...caseDetail,
+    ...customerInfo,
+    ...loanPlan,
     loanSource: businessType || null,
   };
   

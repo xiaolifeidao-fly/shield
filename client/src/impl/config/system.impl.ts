@@ -1,6 +1,7 @@
 import { SystemApi, SyncTimeConfig } from "@eleapi/config/system.api";
 import { getGlobal, setGlobal } from "@utils/store/electron";
 import { BusinessType } from "@eleapi/user/user.api";
+import { rescheduleScheduledTasks, getTaskManager } from "@src/task/task";
 
 const SYNC_TIME_CONFIG_KEY = "syncTimeConfig";
 
@@ -39,6 +40,12 @@ export class SystemImpl extends SystemApi {
             }
         }
         setGlobal(SYNC_TIME_CONFIG_KEY, config);
+        // 重新调度定时任务
+        try {
+            await rescheduleScheduledTasks();
+        } catch (error) {
+            console.error('Failed to reschedule tasks after config update:', error);
+        }
     }
 
     /**
@@ -77,5 +84,12 @@ export class SystemImpl extends SystemApi {
         }
         const configKey = `${SYNC_TIME_CONFIG_KEY}_${businessType}`;
         setGlobal(configKey, { ...config, businessType });
+        // 重新调度该业务类型的定时任务
+        try {
+            const manager = getTaskManager();
+            await manager.scheduleTaskForBusiness(businessType);
+        } catch (error) {
+            console.error(`Failed to reschedule task for business type ${businessType}:`, error);
+        }
     }
 }   
