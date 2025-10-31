@@ -36,14 +36,7 @@ import { mainWindow } from "../windows";
                     
                     // 设置对应的窗口
                     if (port && port !== 0) {
-                        const { PortManager } = await import('../port/port.manager');
-                        const portManager = PortManager.getInstance();
-                        const portInstance = portManager.getInstance(port);
-                        if (portInstance) {
-                            instance.setWindows(portInstance.window);
-                        } else {
-                            instance.setWindows(mainWindow);
-                        }
+                        instance.setWindows(mainWindow);
                     } else {
                         instance.setWindows(mainWindow);
                     }

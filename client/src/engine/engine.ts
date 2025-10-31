@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs'
 import { Browser, chromium, devices,firefox, BrowserContext, Page, Route ,Request, Response} from 'playwright';
-import { get, getGlobal, remove, set, setGlobal } from '@utils/store/electron';
+import {  getGlobal, removeGlobal, setGlobal } from '@utils/store/electron';
 import { app, screen as electronScreen } from 'electron';
 import { DoorEntity } from './entity';
 import log from 'electron-log';
@@ -631,11 +631,11 @@ export abstract class DoorEngine<T = any> {
     }
 
     getSessionPath(){
-        let sessionPath = get(this.getKey())
+        let sessionPath = getGlobal(this.getKey())
         if(sessionPath == undefined){
             sessionPath = this.getLastSessionDir();
             if(sessionPath && fs.existsSync(sessionPath)){
-                set(this.getKey(), sessionPath);
+                setGlobal(this.getKey(), sessionPath);
                 return sessionPath;
             }
             log.info("getSessionPath sessionPath is ", sessionPath);
@@ -695,7 +695,7 @@ export abstract class DoorEngine<T = any> {
             return;
         }
         const sessionDir = this.getSessionDir();
-        set(this.getKey(), sessionDir);
+        setGlobal(this.getKey(), sessionDir);
         await this.context.storageState({ path: sessionDir});
     }
 
@@ -713,17 +713,17 @@ export abstract class DoorEngine<T = any> {
             return;
         }
         const key = this.getHeaderKey();
-        set(key, header);
+        setGlobal(key, header);
     }
 
     public setValidateAutoTag(validateAutoTag : boolean){
         const key = this.getValidateAutoTagKey();
-        set(key, validateAutoTag);
+        setGlobal(key, validateAutoTag);
     }
 
     public getValidateAutoTag(){
         const key = this.getValidateAutoTagKey();
-        const validateAutoTag = get(key);
+        const validateAutoTag = getGlobal(key);
         if(validateAutoTag == undefined){
             return true;
         }
@@ -732,22 +732,22 @@ export abstract class DoorEngine<T = any> {
 
     public getHeader(){
         const key = this.getHeaderKey();
-        return get(key);
+        return getGlobal(key);
     }
 
     public clearHeader(){
         const key = this.getHeaderKey();
-        remove(key);
+        removeGlobal(key);
     }
 
     public setParams(key : string, value : any){
         const paramsKey = this.getKey() + "_" + key;
-        set(paramsKey, value);
+        setGlobal(paramsKey, value);
     }
 
     public getParams(key : string){
         const paramsKey = this.getKey() + "_" + key;
-        return get(paramsKey);
+        return getGlobal(paramsKey);
     }
     async createContext(){
         if(!this.browser){
@@ -1610,13 +1610,13 @@ export async function setPlatform(page : Page){
         }
         return result;
     });
-    set("browserPlatform_" + (process.env.CHROME_VERSION || '1169'), JSON.stringify(platform));
+    setGlobal("browserPlatform_" + (process.env.CHROME_VERSION || '1169'), JSON.stringify(platform));
     return platform;
 }
 
 export async function getPlatform(){
     const chromeVersion = process.env.CHROME_VERSION || '1169';
-    const browserPlatform = await get("browserPlatform_" + chromeVersion);
+    const browserPlatform = await getGlobal("browserPlatform_" + chromeVersion);
     if(browserPlatform){
         return JSON.parse(browserPlatform);
     }

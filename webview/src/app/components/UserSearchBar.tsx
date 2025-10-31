@@ -1,0 +1,61 @@
+'use client'
+
+import React from 'react';
+import { Input, Select, Button } from 'antd';
+import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
+import { BusinessType } from './UserManagement.types';
+
+interface UserSearchBarProps {
+  searchText: string;
+  selectedBusinessType: BusinessType | undefined;
+  onSearchChange: (value: string) => void;
+  onBusinessTypeChange: (value: BusinessType | undefined) => void;
+  onAddClick: () => void;
+  onRefresh: () => void;
+}
+
+const UserSearchBar: React.FC<UserSearchBarProps> = ({
+  searchText,
+  selectedBusinessType,
+  onSearchChange,
+  onBusinessTypeChange,
+  onAddClick,
+  onRefresh,
+}) => {
+  return (
+    <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+      <Select
+        placeholder="Filter by business type"
+        value={selectedBusinessType}
+        onChange={onBusinessTypeChange}
+        allowClear
+        style={{ width: 180 }}
+      >
+        <Select.Option value="adapundi">Adapundi</Select.Option>
+        <Select.Option value="singa">Singa</Select.Option>
+      </Select>
+      <Input
+        placeholder="Search by username or remark"
+        prefix={<SearchOutlined />}
+        value={searchText}
+        onChange={(e) => onSearchChange(e.target.value)}
+        style={{ width: 300 }}
+        allowClear
+      />
+      <Button
+        type="primary"
+        icon={<PlusOutlined />}
+        onClick={onAddClick}
+        className="gradient-btn"
+      >
+        Add User
+      </Button>
+      <Button onClick={onRefresh}>
+        Refresh
+      </Button>
+    </div>
+  );
+};
+
+export default UserSearchBar;
+

@@ -54,7 +54,7 @@ export async function createWindow(windowId : string, url : string) {
   // windowInstance.webContents.openDevTools();
   //@ts-ignore
   windowInstance.webContents.windowId = windowId;
-  windowInstance.title = "x助手plus";
+  windowInstance.title = "shield";
   return windowInstance;
 }
 

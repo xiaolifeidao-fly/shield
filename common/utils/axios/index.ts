@@ -1,6 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { plainToClass,plainToInstance } from 'class-transformer';
-import { getItem } from '@utils/store/web';
 const REQUEST_HEADER_TOKEN = 'Authorization'
 import * as dotenv from 'dotenv';
 const path = require('path');
@@ -55,13 +54,6 @@ const instance: AxiosInstance = axios.create({
 // 前端请求拦截器
 instance.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-
-    // 添加请求头 Authorization
-    const token = await getItem(REQUEST_HEADER_TOKEN);
-    // console.log("token", token);
-    if (token) {
-      config.headers[REQUEST_HEADER_TOKEN] = token;
-    }
     return config;
   },
 );
