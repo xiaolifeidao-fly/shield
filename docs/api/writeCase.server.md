@@ -20,6 +20,7 @@
 
 ```json
 {
+  "loanSource":"adapundi",
   "caseDetail": { /* CaseDetail 对象，手机号字段为明文 */ },
   "loanPlan": [ /* LoanPlan[]，可为空数组 */ ],
   "customerInfo": { /* CustomerInfo 对象 */ }
@@ -182,6 +183,7 @@ Content-Type: application/json
 Authorization: Bearer <token>
 
 {
+  "loanSource":"adapundi",
   "caseDetail": {
     "id": 65064959,
     "caseId": "1075801351789862912",
