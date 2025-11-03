@@ -1,6 +1,8 @@
 // require('module-alias/register');
 import { app, BrowserWindow, protocol, Menu, MenuItem,screen as electronScreen } from 'electron';
 const path = require('path');
+const { spawn, exec } = require('child_process');
+const fs = require('fs');
 import * as dotenv from 'dotenv';
 dotenv.config({path: path.join(__dirname, '.env')}); // 加载 .env 文件中的环境变量
 import { mainWindow, setMainWindow } from './windows';
@@ -14,6 +16,8 @@ import { initializeScheduledTasks } from '@src/task/task';
 
 
 log.info("app load")
+
+
 async function createDefaultWindow() {
   try {
     const store = new Store();
@@ -75,8 +79,10 @@ function registerFileProtocol(){
 
 
 export const start = () => {
+
     app.on('ready', async ()=> {
       try {
+        
         registerRpc();
         registerFileProtocol();
 

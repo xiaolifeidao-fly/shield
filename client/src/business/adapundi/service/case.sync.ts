@@ -4,6 +4,7 @@ import { getLoanPlan, LoanPlan } from "../api/loan.api";
 import { decryptPhone, AuditDataType } from "../api/phone.api";
 import { getCustomerInfo, CustomerInfo } from "../api/customer.api";
 import { SyncStats, UserInfo, BusinessType } from "@eleapi/user/user.api";
+import { writeCase as writeCaseApi } from "../api/writeCase.api";
 
 /**
  * 同步缓存数据结构
@@ -119,7 +120,7 @@ function getUserInfo(username: string): UserInfo | null {
 }
 
 /**
- * 写入案例数据（待后续填充实现）
+ * 写入案例数据
  * @param caseDetail 案例详情（手机号已解密为明文）
  * @param loanPlan 还款计划列表
  * @param customerInfo 客户信息
@@ -131,19 +132,8 @@ async function writeCase(
   customerInfo: CustomerInfo,
   businessType: BusinessType | undefined
 ): Promise<void> {
-  // 添加 loanSource 字段，值等于 businessType
-  const caseDataWithLoanSource = {
-    ...caseDetail,
-    ...customerInfo,
-    ...loanPlan,
-    loanSource: businessType || null,
-  };
-  
-  // TODO: 等待后续填充实现
-  // 这里应该使用 caseDataWithLoanSource 进行实际的数据写入操作
-  console.log('Writing case with loanSource:', caseDataWithLoanSource.loanSource);
-  
-  return Promise.resolve();
+  // 调用 writeCase API 接口
+  await writeCaseApi(caseDetail, loanPlan, customerInfo, businessType);
 }
 
 /**
@@ -319,6 +309,16 @@ export async function syncUserCases(
 ): Promise<SyncStats> {
   // 清除之前的停止标志
   setStopFlag(username, false);
+  
+  // 设置当前操作的用户
+  const userInfo = getUserInfo(username);
+  if (!userInfo) {
+    throw new Error(`用户 ${username} 不存在`);
+  }
+  
+  // 导入并设置当前用户
+  const { setCurrentUser } = await import('../api/adapundi.axios');
+  setCurrentUser(userInfo);
   
   // 获取或初始化统计信息
   const existingStats = getUserSyncStats(username);

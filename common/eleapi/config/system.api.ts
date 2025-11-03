@@ -1,6 +1,6 @@
 import { ElectronApi, InvokeType, Protocols } from "../base";
 
-import { BusinessType } from "../user/user.api";
+import type { BusinessType } from "@eleapi/user/user.api";
 
 export interface SyncTimeConfig {
     type: 'daily' | 'monthly';  // Daily or monthly
