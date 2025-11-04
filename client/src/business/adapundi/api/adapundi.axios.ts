@@ -127,7 +127,21 @@ adapundiInstance.interceptors.response.use(
     const config = error.config as CustomAxiosRequestConfig;
     log.error(`adapundiInstance error: ${JSON.stringify(error)}`);
     // 处理 400 错误 - 尝试重新登录并重试
-    if (error.response?.status === 400 && config) {
+    if (error.response?.status === 401 && config) {
+      // 如果请求URL包含 ac/user/login，则不进行重试
+      const requestUrl = config.url || error.config?.url || '';
+      if (requestUrl.includes('ac/user/login')) {
+        // 直接返回错误，不进行重试
+        if (error.response) {
+          const data = error.response.data as { error?: string; code?: any };
+          if (data && data.error) {
+            return rejectHttpError(data.error, data.code);
+          }
+          return rejectHttpError('请求异常：' + error.request?.url + ' ' + error.response.statusText);
+        }
+        return rejectHttpError(error.message);
+      }
+      
       // 初始化重试计数
       if (!config._retryCount) {
         config._retryCount = 0;
