@@ -2,6 +2,7 @@ import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestCo
 import { getGlobal } from '@utils/store/electron';
 import { UserInfo } from '@eleapi/user/user.api';
 const path = require('path');
+import log from "electron-log";
 import * as dotenv from 'dotenv';
 // 加载 .env 文件中的环境变量（如果还没有加载）
 if (!process.env.WRITE_CASE_API_BASE_URL) {
@@ -124,7 +125,7 @@ adapundiInstance.interceptors.response.use(
   },
   async (error: AxiosError) => {
     const config = error.config as CustomAxiosRequestConfig;
-    
+    log.error(`adapundiInstance error: ${JSON.stringify(error)}`);
     // 处理 400 错误 - 尝试重新登录并重试
     if (error.response?.status === 400 && config) {
       // 初始化重试计数
@@ -139,6 +140,7 @@ adapundiInstance.interceptors.response.use(
         try {
           // 获取用户信息
           const username = config._username;
+          log.info(`current username: ${username}`);
           if (username) {
             const userInfo = getUserInfo(username);
             if (userInfo) {
@@ -147,6 +149,7 @@ adapundiInstance.interceptors.response.use(
               
               // 重新登录获取新 token
               const loginResponse = await login(userInfo, 'adapundi');
+              log.info(`loginResponse: ${JSON.stringify(loginResponse)}`);
               const newToken = loginResponse.accessToken;
               
               // 更新 token 映射
@@ -161,7 +164,7 @@ adapundiInstance.interceptors.response.use(
           }
         } catch (loginError) {
           // 登录失败，继续抛出原始错误
-          console.error('自动重新登录失败:', loginError);
+          log.error('自动重新登录失败:', loginError);
         }
       }
     }
@@ -220,7 +223,7 @@ authCenterInstance.interceptors.response.use(
 // 创建 writeCase 专用的 axios 实例（baseURL 从环境变量读取）
 const writeCaseBaseURL = process.env.WRITE_CASE_API_BASE_URL || '';
 if (!writeCaseBaseURL) {
-  console.warn('警告: WRITE_CASE_API_BASE_URL 环境变量未设置，writeCase 接口可能无法正常工作');
+  log.warn('警告: WRITE_CASE_API_BASE_URL 环境变量未设置，writeCase 接口可能无法正常工作');
 }
 
 const writeCaseInstance: AxiosInstance = axios.create({

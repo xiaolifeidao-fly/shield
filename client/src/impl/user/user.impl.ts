@@ -83,7 +83,9 @@ export class UserImpl extends UserApi {
         log.info(`runUser: ${JSON.stringify(user)} start sync`);
         if (user.businessType === 'adapundi') {
             // 调用 adapundi 同步
-            await syncUserCases(username, {});
+            await syncUserCases(user, {
+                product: 'AP',
+            });
         } else if (user.businessType === 'singa') {
             // TODO: 实现 singa 同步逻辑
             throw new Error('Singa 业务类型暂未实现');

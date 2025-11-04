@@ -309,17 +309,12 @@ async function syncPageCases(
  * @param params 额外的查询参数（如 product 等）
  */
 export async function syncUserCases(
-  username: string,
+  userInfo: UserInfo,
   params: { product?: string; [key: string]: any } = {}
 ): Promise<SyncStats> {
   // 清除之前的停止标志
+  const username = userInfo.username;
   setStopFlag(username, false);
-  
-  // 设置当前操作的用户
-  const userInfo = getUserInfo(username);
-  if (!userInfo) {
-    throw new Error(`用户 ${username} 不存在`);
-  }
   
   // 导入并设置当前用户
   const { setCurrentUser } = await import('../api/adapundi.axios');
@@ -347,6 +342,7 @@ export async function syncUserCases(
 
   try {
     // 保存初始状态
+    log.info(`saveUserSyncStats: ${JSON.stringify(stats)}`);
     saveUserSyncStats(username, stats);
     // todo 测试用，后续删除
     while (pageNum > 1) {
@@ -357,7 +353,7 @@ export async function syncUserCases(
         saveUserSyncStats(username, stats);
         break;
       }
-
+      log.info("start sync page: " + pageNum);
       // 查询当前页的案例列表
       const pageResponse = await getCasePage({
         pageNum,
