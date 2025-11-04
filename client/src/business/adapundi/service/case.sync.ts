@@ -191,19 +191,16 @@ async function syncSingleCase(
     }
 
     const caseDetail = await getCaseDetail(caseItem.product, caseItem.id);
-    log.info(`caseDetail: ${JSON.stringify(caseDetail)}`);
     // 获取还款计划
     let loanPlan: LoanPlan[] = [];
     try {
       loanPlan = await getLoanPlan(caseDetail.customerId);
-      log.info(`loanPlan: ${JSON.stringify(loanPlan)}`);
     } catch (error) {
       log.warn(`Failed to get loan plan for customer ${caseDetail.customerId}:`, error);
       // 还款计划获取失败不影响主流程，使用空数组
     }
 
     // 解密手机号和备用手机号，替换为明文
-    const decryptedCaseDetail = { ...caseDetail };
     
     // 解密本人手机号
     if (caseDetail.mobile) {
@@ -213,8 +210,7 @@ async function syncSingleCase(
           customerId: caseDetail.customerId,
           productEnum: caseItem.product,
         });
-        decryptedCaseDetail.mobile = decryptedMobile;
-        log.info(`decryptedMobile: ${decryptedMobile}`);
+        caseDetail.mobile = decryptedMobile;
       } catch (error) {
         log.warn(`Failed to decrypt mobile for case ${caseItem.caseId}:`, error);
         // 解密失败时保留原值
@@ -229,8 +225,7 @@ async function syncSingleCase(
           customerId: caseDetail.customerId,
           productEnum: caseItem.product,
         });
-        decryptedCaseDetail.backupMobile = decryptedBackupMobile;
-        log.info(`decryptedBackupMobile: ${decryptedBackupMobile}`);
+        caseDetail.backupMobile = decryptedBackupMobile;
       } catch (error) {
         log.warn(`Failed to decrypt backupMobile for case ${caseItem.caseId}:`, error);
         // 解密失败时保留原值
@@ -241,7 +236,6 @@ async function syncSingleCase(
     let customerInfo: CustomerInfo;
     try {
       customerInfo = await getCustomerInfo(caseItem.product, caseDetail.customerId);
-      log.info(`customerInfo: ${JSON.stringify(customerInfo)}`);
     } catch (error) {
       log.warn(`Failed to get customer info for customer ${caseDetail.customerId}:`, error);
       // 客户信息获取失败不影响主流程，但需要抛出错误或使用默认值
@@ -254,7 +248,7 @@ async function syncSingleCase(
     const businessType = userInfo?.businessType;
 
     // 写入案例数据（使用解密后的数据）
-    await writeCase(decryptedCaseDetail, loanPlan, customerInfo, businessType);
+    await writeCase(caseDetail, loanPlan, customerInfo, businessType);
 
     // 更新缓存：记录今天已同步
     updateCache(cache, caseItem.caseId);
@@ -345,7 +339,7 @@ export async function syncUserCases(
     log.info(`saveUserSyncStats: ${JSON.stringify(stats)}`);
     saveUserSyncStats(username, stats);
     // todo 测试用，后续删除
-    while (pageNum >= 1) {
+    while (pageNum <= 1) {
       // 检查停止标志
       if (getStopFlag(username)) {
         stats.running = false;
