@@ -8,9 +8,11 @@ import log from "electron-log";
  * writeCase 接口的请求参数类型
  * 与 caseDataWithLoanSource 结构一致：展开 caseDetail、customerInfo，包含 loanPlan 数组和 loanSource
  */
-export type WriteCaseRequest = CaseDetail & CustomerInfo & {
+export type WriteCaseRequest = {
   loanPlan: LoanPlan[];
   loanSource: BusinessType | null;
+  caseDetail: CaseDetail;
+  customerInfo: CustomerInfo;
 };
 
 /**
@@ -29,13 +31,11 @@ export async function writeCase(
 ): Promise<void> {
   // 构建请求数据，与 caseDataWithLoanSource 结构一致
   const requestData: WriteCaseRequest = {
-    ...caseDetail,
-    ...customerInfo,
-    loanPlan,
-    loanSource: businessType || null,
+    caseDetail: caseDetail,
+    customerInfo: customerInfo,
+    loanPlan: loanPlan,
+    loanSource: businessType || null
   };
   log.info(`writeCase requestData: ${JSON.stringify(requestData)}`);
-  const response = await writeCaseInstance.post("/loan/import/external/sync", requestData);
-  log.info(`writeCase response: ${JSON.stringify(response)}`);
+  await writeCaseInstance.post("/loan/import/external/sync", requestData);
 }
-

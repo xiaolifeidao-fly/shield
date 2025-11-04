@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Table, Button, Popconfirm, Space, Progress, Typography, Tag, Tooltip, Dropdown } from 'antd';
 import { EditOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined, MoreOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
@@ -28,6 +28,21 @@ const UserTable: React.FC<UserTableProps> = ({
   onRun,
   onStop,
 }) => {
+  // 管理展开的行
+  const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([]);
+
+  // 处理运行按钮点击，自动展开对应行的数据统计
+  const handleRun = (username: string, userId: string) => {
+    // 展开对应的行
+    setExpandedRowKeys(prev => {
+      if (!prev.includes(userId)) {
+        return [...prev, userId];
+      }
+      return prev;
+    });
+    // 调用原始的 onRun
+    onRun(username);
+  };
 
   const columns: ColumnsType<UserInfo> = [
     {
@@ -82,7 +97,7 @@ const UserTable: React.FC<UserTableProps> = ({
               <span 
                 onClick={() => {
                   if (record.businessType && !isRunning && !runningUsers.has(record.username)) {
-                    onRun(record.username);
+                    handleRun(record.username, record.id);
                   }
                 }}
                 style={{ 
@@ -175,7 +190,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 <Button
                   type="link"
                   icon={<PlayCircleOutlined />}
-                  onClick={() => onRun(record.username)}
+                  onClick={() => handleRun(record.username, record.id)}
                   size="small"
                   style={{ padding: '0 2px', minWidth: 'auto' }}
                   loading={runningUsers.has(record.username)}
@@ -351,7 +366,14 @@ const UserTable: React.FC<UserTableProps> = ({
         expandedRowRender,
         expandRowByClick: false,
         rowExpandable: () => true,
-        defaultExpandAllRows: true, // Default expand all rows to display syncStats
+        expandedRowKeys,
+        onExpand: (expanded, record) => {
+          if (expanded) {
+            setExpandedRowKeys(prev => [...prev, record.id]);
+          } else {
+            setExpandedRowKeys(prev => prev.filter(key => key !== record.id));
+          }
+        },
       }}
       pagination={{
         pageSize: 10,
