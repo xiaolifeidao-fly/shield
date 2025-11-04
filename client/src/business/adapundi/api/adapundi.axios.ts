@@ -269,6 +269,7 @@ writeCaseInstance.interceptors.response.use(
     return result.data;
   },
   (error: AxiosError) => {
+    log.error(`writeCaseInstance error: ${JSON.stringify(error)}`);
     if (error.response) {
       const data = error.response.data as { error?: string; code?: any };
       if (data && data.error) {
