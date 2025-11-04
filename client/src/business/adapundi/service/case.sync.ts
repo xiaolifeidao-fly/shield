@@ -354,7 +354,7 @@ export async function syncUserCases(
         pageSize,
         ...params,
       });
-      log.info(`pageResponse: ${JSON.stringify(pageResponse.total)}`);
+      log.info(`pageResponse: ${JSON.stringify(pageResponse.total)} total pages: ${pageResponse.pages} `);
       // 如果没有数据，结束循环
       if (!pageResponse.records || pageResponse.records.length === 0) {
         break;
