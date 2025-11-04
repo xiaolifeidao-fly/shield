@@ -57,8 +57,8 @@ export class UserApi extends ElectronApi {
     }
 
     @InvokeType(Protocols.INVOKE)
-    async runUser(username: string): Promise<void> {
-        return this.invokeApi("runUser", username);
+    async runUser(username: string, enableDeduplication: boolean = true): Promise<void> {
+        return this.invokeApi("runUser", username, enableDeduplication);
     }
 
     @InvokeType(Protocols.INVOKE)

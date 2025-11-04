@@ -73,18 +73,19 @@ export class UserImpl extends UserApi {
         this.saveUserList(userList);
     }
 
-    async runUser(username: string): Promise<void> {
+    async runUser(username: string, enableDeduplication: boolean = true): Promise<void> {
         const userList = this.getUserList();
         const user = userList.find(u => u.username === username);
         if (!user) {
             throw new Error(`用户 ${username} 不存在`);
         }
         // 根据业务类型执行同步
-        log.info(`runUser: ${JSON.stringify(user)} start sync`);
+        log.info(`runUser: ${JSON.stringify(user)} start sync, enableDeduplication: ${enableDeduplication}`);
         if (user.businessType === 'adapundi') {
             // 调用 adapundi 同步
             await syncUserCases(user, {
                 product: 'AP',
+                enableDeduplication,
             });
         } else if (user.businessType === 'singa') {
             // TODO: 实现 singa 同步逻辑

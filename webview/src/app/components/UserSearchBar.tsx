@@ -1,15 +1,17 @@
 'use client'
 
 import React from 'react';
-import { Input, Select, Button } from 'antd';
+import { Input, Select, Button, Checkbox } from 'antd';
 import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
 import { BusinessType } from './UserManagement.types';
 
 interface UserSearchBarProps {
   searchText: string;
   selectedBusinessType: BusinessType | undefined;
+  enableDeduplication: boolean;
   onSearchChange: (value: string) => void;
   onBusinessTypeChange: (value: BusinessType | undefined) => void;
+  onDeduplicationChange: (value: boolean) => void;
   onAddClick: () => void;
   onRefresh: () => void;
 }
@@ -17,13 +19,15 @@ interface UserSearchBarProps {
 const UserSearchBar: React.FC<UserSearchBarProps> = ({
   searchText,
   selectedBusinessType,
+  enableDeduplication,
   onSearchChange,
   onBusinessTypeChange,
+  onDeduplicationChange,
   onAddClick,
   onRefresh,
 }) => {
   return (
-    <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+    <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
       <Select
         placeholder="Filter by business type"
         value={selectedBusinessType}
@@ -42,6 +46,12 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
         style={{ width: 300 }}
         allowClear
       />
+      <Checkbox
+        checked={enableDeduplication}
+        onChange={(e) => onDeduplicationChange(e.target.checked)}
+      >
+        当日去重
+      </Checkbox>
       <Button
         type="primary"
         icon={<PlusOutlined />}

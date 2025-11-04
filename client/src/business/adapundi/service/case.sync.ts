@@ -197,16 +197,18 @@ function hasMorePages(
  * @param caseItem 案例信息
  * @param cache 同步缓存
  * @param stats 统计信息
+ * @param enableDeduplication 是否启用去重
  * @returns 是否同步成功
  */
 async function syncSingleCase(
   username: string,
   caseItem: Case,
   cache: SyncCache,
-  stats: SyncStats
+  stats: SyncStats,
+  enableDeduplication: boolean = true
 ): Promise<boolean> {
-  // 检查是否需要同步（每天最多同步成功1次）
-  if (!shouldSync(cache, caseItem.caseId)) {
+  // 如果启用去重，检查是否需要同步（每天最多同步成功1次）
+  if (enableDeduplication && !shouldSync(cache, caseItem.caseId)) {
     stats.skipCount++;
     return false;
   }
@@ -279,11 +281,12 @@ async function syncSingleCase(
     // 写入案例数据（使用解密后的数据）
     await writeCase(caseDetail, loanPlan, customerInfo, businessType);
 
-    // 更新缓存：记录今天已同步
-    updateCache(cache, caseItem.caseId);
-
-    // 立即保存缓存到 store
-    saveUserSyncCache(username, cache);
+    // 如果启用去重，更新缓存：记录今天已同步
+    if (enableDeduplication) {
+      updateCache(cache, caseItem.caseId);
+      // 立即保存缓存到 store
+      saveUserSyncCache(username, cache);
+    }
 
     // 更新统计：成功数量
     stats.successCount++;
@@ -307,13 +310,15 @@ async function syncSingleCase(
  * @param records 当前页的案例列表
  * @param cache 同步缓存
  * @param stats 统计信息
+ * @param enableDeduplication 是否启用去重
  * @returns 是否被停止
  */
 async function syncPageCases(
   username: string,
   records: Case[],
   cache: SyncCache,
-  stats: SyncStats
+  stats: SyncStats,
+  enableDeduplication: boolean = true
 ): Promise<boolean> {
   for (const caseItem of records) {
     // 检查停止标志
@@ -321,19 +326,19 @@ async function syncPageCases(
       return true; // 被停止
     }
     stats.totalCount++;
-    await syncSingleCase(username, caseItem, cache, stats);
+    await syncSingleCase(username, caseItem, cache, stats, enableDeduplication);
   }
   return false; // 未被停止
 }
 
 /**
  * 同步用户的案例列表
- * @param username 用户名
- * @param params 额外的查询参数（如 product 等）
+ * @param userInfo 用户信息
+ * @param params 额外的查询参数（如 product、enableDeduplication 等）
  */
 export async function syncUserCases(
   userInfo: UserInfo,
-  params: { product?: string; [key: string]: any } = {}
+  params: { product?: string; enableDeduplication?: boolean; [key: string]: any } = {}
 ): Promise<SyncStats> {
   // 清除之前的停止标志
   const username = userInfo.username;
@@ -359,6 +364,8 @@ export async function syncUserCases(
   
   const cache = getUserSyncCache(username);
   const startTimeMs = Date.now();
+  // 从参数中获取去重选项，默认为 true
+  const enableDeduplication = params.enableDeduplication !== undefined ? params.enableDeduplication : true;
 
   let pageNum = 1;
   const pageSize = 20;
@@ -390,7 +397,7 @@ export async function syncUserCases(
       }
 
       // 同步当前页的案例
-      const stopped = await syncPageCases(username, pageResponse.records, cache, stats);
+      const stopped = await syncPageCases(username, pageResponse.records, cache, stats, enableDeduplication);
       
       // 更新运行时长
       stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
