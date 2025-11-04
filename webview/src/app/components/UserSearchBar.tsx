@@ -9,9 +9,11 @@ interface UserSearchBarProps {
   searchText: string;
   selectedBusinessType: BusinessType | undefined;
   enableDeduplication: boolean;
+  enableResume: boolean;
   onSearchChange: (value: string) => void;
   onBusinessTypeChange: (value: BusinessType | undefined) => void;
   onDeduplicationChange: (value: boolean) => void;
+  onResumeChange: (value: boolean) => void;
   onAddClick: () => void;
   onRefresh: () => void;
 }
@@ -20,9 +22,11 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
   searchText,
   selectedBusinessType,
   enableDeduplication,
+  enableResume,
   onSearchChange,
   onBusinessTypeChange,
   onDeduplicationChange,
+  onResumeChange,
   onAddClick,
   onRefresh,
 }) => {
@@ -51,6 +55,12 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
         onChange={(e) => onDeduplicationChange(e.target.checked)}
       >
         当日去重
+      </Checkbox>
+      <Checkbox
+        checked={enableResume}
+        onChange={(e) => onResumeChange(e.target.checked)}
+      >
+        当日断点续传
       </Checkbox>
       <Button
         type="primary"

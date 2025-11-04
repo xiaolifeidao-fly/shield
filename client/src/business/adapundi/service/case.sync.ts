@@ -90,6 +90,59 @@ function getStopFlag(username: string): boolean {
 }
 
 /**
+ * 当日断点续传数据结构
+ */
+interface ResumeData {
+  date: string; // 日期 (YYYY-MM-DD)
+  pageNum: number; // 页码
+}
+
+/**
+ * 获取当日断点续传的 key
+ */
+function getResumeKey(username: string): string {
+  return `sync_resume_${username}`;
+}
+
+/**
+ * 获取用户的断点续传页码（如果是当日，返回保存的页码；否则返回 1）
+ */
+function getUserResumePageNum(username: string): number {
+  const resumeKey = getResumeKey(username);
+  const resumeData: ResumeData | undefined = getGlobal(resumeKey);
+  const today = getTodayString();
+  
+  // 如果没有保存的数据，或者不是当日的，返回 1
+  if (!resumeData || resumeData.date !== today) {
+    return 1;
+  }
+  
+  // 如果是当日的，返回保存的页码
+  return resumeData.pageNum || 1;
+}
+
+/**
+ * 保存用户的断点续传页码（当日）
+ */
+function saveUserResumePageNum(username: string, pageNum: number): void {
+  const resumeKey = getResumeKey(username);
+  const today = getTodayString();
+  const resumeData: ResumeData = {
+    date: today,
+    pageNum: pageNum,
+  };
+  setGlobal(resumeKey, resumeData);
+}
+
+/**
+ * 清除用户的断点续传页码
+ */
+function clearUserResumePageNum(username: string): void {
+  const resumeKey = getResumeKey(username);
+  setGlobal(resumeKey, undefined);
+}
+
+/**
  * 设置用户的运行状态（内存中）
  */
 function setRunningStatus(username: string, running: boolean): void {
@@ -334,11 +387,11 @@ async function syncPageCases(
 /**
  * 同步用户的案例列表
  * @param userInfo 用户信息
- * @param params 额外的查询参数（如 product、enableDeduplication 等）
+ * @param params 额外的查询参数（如 product、enableDeduplication、enableResume 等）
  */
 export async function syncUserCases(
   userInfo: UserInfo,
-  params: { product?: string; enableDeduplication?: boolean; [key: string]: any } = {}
+  params: { product?: string; enableDeduplication?: boolean; enableResume?: boolean; [key: string]: any } = {}
 ): Promise<SyncStats> {
   // 清除之前的停止标志
   const username = userInfo.username;
@@ -366,8 +419,22 @@ export async function syncUserCases(
   const startTimeMs = Date.now();
   // 从参数中获取去重选项，默认为 true
   const enableDeduplication = params.enableDeduplication !== undefined ? params.enableDeduplication : true;
+  // 从参数中获取断点续传选项，默认为 false
+  const enableResume = params.enableResume !== undefined ? params.enableResume : false;
 
-  let pageNum = 1;
+  // 根据是否启用断点续传来决定起始页码
+  let pageNum: number;
+  if (enableResume) {
+    // 如果启用断点续传，从当日保存的页码开始
+    pageNum = getUserResumePageNum(username);
+    log.info(`Resume enabled, starting from page ${pageNum}`);
+  } else {
+    // 如果不启用断点续传，从第一页开始，并清除保存的页码
+    pageNum = 1;
+    clearUserResumePageNum(username);
+    log.info(`Resume disabled, starting from page 1`);
+  }
+  
   const pageSize = 20;
 
   try {
@@ -375,7 +442,7 @@ export async function syncUserCases(
     log.info(`saveUserSyncStats: ${JSON.stringify(stats)}`);
     saveUserSyncStats(username, stats);
     // todo 测试用，后续删除
-    while (pageNum <= 1) {
+    while (true) {
       // 检查停止标志
       if (getStopFlag(username)) {
         stats.running = false;
@@ -419,7 +486,14 @@ export async function syncUserCases(
         break;
       }
 
+      // 准备进入下一页
       pageNum++;
+      
+      // 如果启用断点续传，在进入下一页前保存页码到 store
+      if (enableResume) {
+        saveUserResumePageNum(username, pageNum);
+        log.info(`Saved resume pageNum ${pageNum} for user ${username}`);
+      }
     }
 
     // 同步完成，更新状态
@@ -427,6 +501,12 @@ export async function syncUserCases(
     stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
     stats.lastSyncTime = new Date().toISOString();
     saveUserSyncStats(username, stats);
+    
+    // 如果启用断点续传，同步完成时清除断点续传页码（当日同步已完成）
+    if (enableResume) {
+      clearUserResumePageNum(username);
+      log.info(`Sync completed, cleared resume pageNum for user ${username}`);
+    }
 
     return stats;
   } catch (error) {

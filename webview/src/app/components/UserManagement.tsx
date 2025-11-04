@@ -16,6 +16,7 @@ const UserManagement: React.FC = () => {
   const [searchText, setSearchText] = useState<string>('');
   const [selectedBusinessType, setSelectedBusinessType] = useState<BusinessType | undefined>(undefined);
   const [enableDeduplication, setEnableDeduplication] = useState<boolean>(true); // 默认选中
+  const [enableResume, setEnableResume] = useState<boolean>(false); // 默认不选中
   const [runningUsers, setRunningUsers] = useState<Set<string>>(new Set());
   const [form] = Form.useForm();
 
@@ -131,7 +132,7 @@ const UserManagement: React.FC = () => {
       const userApi = (window as any).user;
       if (userApi && userApi.runUser) {
         setRunningUsers(prev => new Set(prev).add(username));
-        await userApi.runUser(username, enableDeduplication);
+        await userApi.runUser(username, enableDeduplication, enableResume);
         message.success(`User ${username} sync started successfully`);
       }
     } catch (error: any) {
@@ -165,9 +166,11 @@ const UserManagement: React.FC = () => {
         searchText={searchText}
         selectedBusinessType={selectedBusinessType}
         enableDeduplication={enableDeduplication}
+        enableResume={enableResume}
         onSearchChange={setSearchText}
         onBusinessTypeChange={setSelectedBusinessType}
         onDeduplicationChange={setEnableDeduplication}
+        onResumeChange={setEnableResume}
         onAddClick={() => openModal()}
         onRefresh={loadUsers}
       />
