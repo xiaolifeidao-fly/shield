@@ -1,7 +1,7 @@
 import { UserApi, UserInfo } from "@eleapi/user/user.api";
 import { getGlobal, setGlobal } from "@utils/store/electron";
 import { syncUserCases, getUserSyncStatsInfo, stopUserSync } from "@src/business/adapundi/service/case.sync";
-
+import log from "electron-log";
 const USER_LIST_KEY = "userList";
 
 export class UserImpl extends UserApi {
@@ -80,6 +80,7 @@ export class UserImpl extends UserApi {
             throw new Error(`用户 ${username} 不存在`);
         }
         // 根据业务类型执行同步
+        log.info(`runUser: ${user} start `);
         if (user.businessType === 'adapundi') {
             // 调用 adapundi 同步
             await syncUserCases(username, {});
