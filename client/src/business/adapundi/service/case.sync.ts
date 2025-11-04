@@ -8,6 +8,11 @@ import { writeCase as writeCaseApi } from "../api/writeCase.api";
 import log from "electron-log";
 
 /**
+ * 运行状态内存存储（username -> running状态）
+ */
+const runningStatusMap = new Map<string, boolean>();
+
+/**
  * 同步缓存数据结构
  */
 interface SyncCache {
@@ -85,27 +90,51 @@ function getStopFlag(username: string): boolean {
 }
 
 /**
+ * 设置用户的运行状态（内存中）
+ */
+function setRunningStatus(username: string, running: boolean): void {
+  runningStatusMap.set(username, running);
+}
+
+/**
+ * 获取用户的运行状态（内存中）
+ */
+function getRunningStatus(username: string): boolean {
+  return runningStatusMap.get(username) || false;
+}
+
+/**
  * 获取用户的同步统计
  */
 function getUserSyncStats(username: string): SyncStats {
   const statsKey = `sync_stats_${username}`;
   const stats = getGlobal(statsKey);
-  return stats || {
+  const baseStats = stats || {
     totalCount: 0,
     successCount: 0,
     skipCount: 0,
     failCount: 0,
     lastSyncTime: '',
-    running: false,
+  };
+  // 从内存中获取 running 状态
+  return {
+    ...baseStats,
+    running: getRunningStatus(username),
   };
 }
 
 /**
- * 保存用户的同步统计
+ * 保存用户的同步统计（不保存 running 状态到 store）
  */
 function saveUserSyncStats(username: string, stats: SyncStats): void {
   const statsKey = `sync_stats_${username}`;
-  setGlobal(statsKey, stats);
+  // 只保存非 running 字段到 store
+  const { running, ...statsToSave } = stats;
+  setGlobal(statsKey, statsToSave);
+  // 单独处理 running 状态到内存
+  if (running !== undefined) {
+    setRunningStatus(username, running);
+  }
 }
 
 /**
