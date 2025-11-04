@@ -139,7 +139,7 @@ function saveUserResumePageNum(username: string, pageNum: number): void {
  */
 function clearUserResumePageNum(username: string): void {
   const resumeKey = getResumeKey(username);
-  setGlobal(resumeKey, undefined);
+  setGlobal(resumeKey, 1);
 }
 
 /**

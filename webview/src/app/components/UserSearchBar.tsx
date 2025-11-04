@@ -54,13 +54,13 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
         checked={enableDeduplication}
         onChange={(e) => onDeduplicationChange(e.target.checked)}
       >
-        当日去重
+        Daily Deduplication
       </Checkbox>
       <Checkbox
         checked={enableResume}
         onChange={(e) => onResumeChange(e.target.checked)}
       >
-        当日断点续传
+        Daily Resume
       </Checkbox>
       <Button
         type="primary"
