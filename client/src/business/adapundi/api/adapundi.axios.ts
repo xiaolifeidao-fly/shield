@@ -261,6 +261,7 @@ const writeCaseInstance: AxiosInstance = axios.create({
 writeCaseInstance.interceptors.response.use(
   (response: AxiosResponse) => {
     let result = response.data;
+    log.info(`writeCaseInstance response: ${JSON.stringify(result)}`);
     if (result.code != 0) {
       return rejectHttpError(
         result.error || result.message || result.errorMessage || '请求异常！',
