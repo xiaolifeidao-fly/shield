@@ -5,6 +5,7 @@ import { decryptPhone, AuditDataType } from "../api/phone.api";
 import { getCustomerInfo, CustomerInfo } from "../api/customer.api";
 import { SyncStats, UserInfo, BusinessType } from "@eleapi/user/user.api";
 import { writeCase as writeCaseApi } from "../api/writeCase.api";
+import log from "electron-log";
 
 /**
  * 同步缓存数据结构
@@ -184,19 +185,20 @@ async function syncSingleCase(
   try {
     // 查询案例详情
     if (!caseItem.product) {
-      console.warn(`Case ${caseItem.caseId} has no product, skipping detail query`);
+      log.warn(`Case ${caseItem.caseId} has no product, skipping detail query`);
       stats.failCount++;
       return false;
     }
 
     const caseDetail = await getCaseDetail(caseItem.product, caseItem.id);
-
+    log.info(`caseDetail: ${JSON.stringify(caseDetail)}`);
     // 获取还款计划
     let loanPlan: LoanPlan[] = [];
     try {
       loanPlan = await getLoanPlan(caseDetail.customerId);
+      log.info(`loanPlan: ${JSON.stringify(loanPlan)}`);
     } catch (error) {
-      console.warn(`Failed to get loan plan for customer ${caseDetail.customerId}:`, error);
+      log.warn(`Failed to get loan plan for customer ${caseDetail.customerId}:`, error);
       // 还款计划获取失败不影响主流程，使用空数组
     }
 
@@ -212,8 +214,9 @@ async function syncSingleCase(
           productEnum: caseItem.product,
         });
         decryptedCaseDetail.mobile = decryptedMobile;
+        log.info(`decryptedMobile: ${decryptedMobile}`);
       } catch (error) {
-        console.warn(`Failed to decrypt mobile for case ${caseItem.caseId}:`, error);
+        log.warn(`Failed to decrypt mobile for case ${caseItem.caseId}:`, error);
         // 解密失败时保留原值
       }
     }
@@ -227,8 +230,9 @@ async function syncSingleCase(
           productEnum: caseItem.product,
         });
         decryptedCaseDetail.backupMobile = decryptedBackupMobile;
+        log.info(`decryptedBackupMobile: ${decryptedBackupMobile}`);
       } catch (error) {
-        console.warn(`Failed to decrypt backupMobile for case ${caseItem.caseId}:`, error);
+        log.warn(`Failed to decrypt backupMobile for case ${caseItem.caseId}:`, error);
         // 解密失败时保留原值
       }
     }
@@ -237,8 +241,9 @@ async function syncSingleCase(
     let customerInfo: CustomerInfo;
     try {
       customerInfo = await getCustomerInfo(caseItem.product, caseDetail.customerId);
+      log.info(`customerInfo: ${JSON.stringify(customerInfo)}`);
     } catch (error) {
-      console.warn(`Failed to get customer info for customer ${caseDetail.customerId}:`, error);
+      log.warn(`Failed to get customer info for customer ${caseDetail.customerId}:`, error);
       // 客户信息获取失败不影响主流程，但需要抛出错误或使用默认值
       // 这里根据业务需求决定：如果客户信息必需，则抛出错误；如果可选，可以使用默认值或空对象
       throw new Error(`Failed to get customer info for customer ${caseDetail.customerId}`);
@@ -266,7 +271,7 @@ async function syncSingleCase(
     return true;
   } catch (error) {
     // 写入失败，不更新缓存，计入失败数量
-    console.error(`Failed to sync case ${caseItem.caseId}:`, error);
+    log.error(`Failed to sync case ${caseItem.caseId}:`, error);
     stats.failCount++;
     saveUserSyncStats(username, stats);
     return false;
@@ -343,8 +348,8 @@ export async function syncUserCases(
   try {
     // 保存初始状态
     saveUserSyncStats(username, stats);
-
-    while (true) {
+    // todo 测试用，后续删除
+    while (pageNum > 1) {
       // 检查停止标志
       if (getStopFlag(username)) {
         stats.running = false;
@@ -359,7 +364,7 @@ export async function syncUserCases(
         pageSize,
         ...params,
       });
-
+      log.info(`pageResponse: ${JSON.stringify(pageResponse)}`);
       // 如果没有数据，结束循环
       if (!pageResponse.records || pageResponse.records.length === 0) {
         break;
