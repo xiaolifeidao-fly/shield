@@ -32,7 +32,7 @@ const UserTable: React.FC<UserTableProps> = ({
   const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([]);
 
   // 处理运行按钮点击，自动展开对应行的数据统计
-  const handleRun = (username: string, userId: string) => {1
+  const handleRun = (username: string, userId: string) => {
     // 展开对应的行
     setExpandedRowKeys(prev => {
       if (!prev.includes(userId)) {

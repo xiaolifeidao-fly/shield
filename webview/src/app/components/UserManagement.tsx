@@ -41,10 +41,10 @@ const UserManagement: React.FC = () => {
   useEffect(() => {
     loadUsers();
     
-    // Poll userList every 5 seconds
+    // Poll userList every 2 seconds
     const interval = setInterval(() => {
       loadUsers();
-    }, 5000);
+    }, 2000);
     
     return () => {
       clearInterval(interval);
