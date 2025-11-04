@@ -5,12 +5,12 @@
   "main": "dist/main.js",
   "scripts": {
     "dev-mac": "sh mac/dev.sh",
-    "dev-win": "./win/dev.bat",
+    "dev-win": ".\\win\\dev.bat",
     "build": "webpack --config webpack.config.js --mode production",
     "start": "electron .",
     "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "package:mac": "sh mac/package_mac.sh",
-    "package:win": "./win/package_win.bat"
+    "package:win": ".\\win\\package_win.bat"
   },
   "build": {
     "appId": "com.x.shield.assistant.desk.app",
