@@ -26,8 +26,8 @@ function rejectHttpError(message: string, code?: any): Promise<never> {
   return Promise.reject(error);
 }
 
-// Store 中的 key
-const USER_TOKEN_MAP_KEY = "userTokenMap";
+// Store 中的 key 前缀
+const USER_TOKEN_KEY_PREFIX = "userToken";
 
 // 当前操作的用户信息
 let currentUserInfo: UserInfo | null = null;
@@ -59,37 +59,34 @@ function getUserInfo(username: string): UserInfo | null {
 }
 
 /**
- * 获取用户 token 映射对象
+ * 获取用户 token 的 store key
  */
-function getUserTokenMap(): Record<string, string> {
-  const tokenMap = getGlobal(USER_TOKEN_MAP_KEY);
-  return tokenMap && typeof tokenMap === 'object' ? tokenMap : {};
+function getUserTokenKey(username: string): string {
+  return `${USER_TOKEN_KEY_PREFIX}.${username}`;
 }
 
 /**
  * 设置用户 token
  */
 export function setUserToken(username: string, token: string): void {
-  const tokenMap = getUserTokenMap();
-  tokenMap[username] = token;
-  setGlobal(USER_TOKEN_MAP_KEY, tokenMap);
+  const key = getUserTokenKey(username);
+  setGlobal(key, token);
 }
 
 /**
  * 获取用户 token
  */
 export function getUserToken(username: string): string | undefined {
-  const tokenMap = getUserTokenMap();
-  return tokenMap[username];
+  const key = getUserTokenKey(username);
+  return getGlobal(key);
 }
 
 /**
  * 清除用户 token
  */
 export function clearUserToken(username: string): void {
-  const tokenMap = getUserTokenMap();
-  delete tokenMap[username];
-  setGlobal(USER_TOKEN_MAP_KEY, tokenMap);
+  const key = getUserTokenKey(username);
+  removeGlobal(key);
 }
 
 // 扩展 AxiosRequestConfig 以支持自定义属性
@@ -247,6 +244,7 @@ authCenterInstance.interceptors.response.use(
 
 // 创建 writeCase 专用的 axios 实例（baseURL 从环境变量读取）
 const writeCaseBaseURL = process.env.WRITE_CASE_API_BASE_URL || '';
+log.info("writeCaseBaseURL : ", writeCaseBaseURL);
 if (!writeCaseBaseURL) {
   log.warn('警告: WRITE_CASE_API_BASE_URL 环境变量未设置，writeCase 接口可能无法正常工作');
 }
