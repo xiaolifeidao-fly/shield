@@ -345,7 +345,7 @@ export async function syncUserCases(
     log.info(`saveUserSyncStats: ${JSON.stringify(stats)}`);
     saveUserSyncStats(username, stats);
     // todo 测试用，后续删除
-    while (pageNum > 1) {
+    while (pageNum >= 1) {
       // 检查停止标志
       if (getStopFlag(username)) {
         stats.running = false;
