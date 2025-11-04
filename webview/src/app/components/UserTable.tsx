@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react';
-import { Table, Button, Popconfirm, Space, Progress, Typography, Tag, Tooltip, Dropdown } from 'antd';
+import { Table, Button, Popconfirm, Space, Progress, Typography, Tag, Tooltip, Dropdown, Spin } from 'antd';
 import { EditOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined, MoreOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
@@ -32,7 +32,7 @@ const UserTable: React.FC<UserTableProps> = ({
   const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([]);
 
   // 处理运行按钮点击，自动展开对应行的数据统计
-  const handleRun = (username: string, userId: string) => {
+  const handleRun = (username: string, userId: string) => {1
     // 展开对应的行
     setExpandedRowKeys(prev => {
       if (!prev.includes(userId)) {
@@ -265,8 +265,22 @@ const UserTable: React.FC<UserTableProps> = ({
   const expandedRowRender = (record: UserInfo) => {
     const { syncStats } = record;
     const isRunning = syncStats?.running || false;
+    const isUserRunning = runningUsers.has(record.username);
+    const isLoading = isRunning || isUserRunning;
     
-    if (!syncStats) {
+    // 如果正在运行但没有统计数据，显示加载动画
+    if (isLoading && !syncStats) {
+      return (
+        <div style={{ padding: '16px', background: '#fafafa', textAlign: 'center' }}>
+          <Spin size="large" />
+          <div style={{ marginTop: '12px' }}>
+            <Text type="secondary">Loading statistics...</Text>
+          </div>
+        </div>
+      );
+    }
+    
+    if (!syncStats && !isLoading) {
       return (
         <div style={{ padding: '16px', background: '#fafafa' }}>
           <Text type="secondary">No sync statistics available</Text>
@@ -274,7 +288,12 @@ const UserTable: React.FC<UserTableProps> = ({
       );
     }
 
-    const { totalCount, successCount, skipCount, failCount, lastSyncTime, startTime, duration } = syncStats;
+    const { totalCount, successCount, skipCount, failCount, lastSyncTime, startTime, duration } = syncStats || {
+      totalCount: 0,
+      successCount: 0,
+      skipCount: 0,
+      failCount: 0,
+    };
     
     // Calculate progress percentage (if there is total count)
     const progressPercent = totalCount > 0 
@@ -282,77 +301,79 @@ const UserTable: React.FC<UserTableProps> = ({
       : 0;
 
     return (
-      <div style={{ padding: '16px', background: '#fafafa' }}>
-        <div style={{ marginBottom: '12px' }}>
-          <Space direction="vertical" size="small" style={{ width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-              <Text strong>Sync Statistics</Text>
-              <Space size="middle">
+      <Spin spinning={isLoading} tip="Loading statistics...">
+        <div style={{ padding: '16px', background: '#fafafa' }}>
+          <div style={{ marginBottom: '12px' }}>
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <Text strong>Sync Statistics</Text>
+                <Space size="middle">
+                  <div>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>Status: </Text>
+                    <Tag color={isRunning ? 'processing' : 'default'}>
+                      {isRunning ? 'Running' : 'Stopped'}
+                    </Tag>
+                  </div>
+                  {startTime && (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>Start Time: </Text>
+                      <Text style={{ fontSize: '12px' }}>
+                        {new Date(startTime).toLocaleString('en-US')}
+                      </Text>
+                    </div>
+                  )}
+                  {duration !== undefined && (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>Duration: </Text>
+                      <Text strong style={{ fontSize: '12px' }}>{formatDuration(duration)}</Text>
+                    </div>
+                  )}
+                  {lastSyncTime && (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>Last Sync: </Text>
+                      <Text style={{ fontSize: '12px' }}>
+                        {new Date(lastSyncTime).toLocaleString('en-US')}
+                      </Text>
+                    </div>
+                  )}
+                </Space>
+              </div>
+              
+              {/* Show progress bar only when running */}
+              {isRunning && totalCount > 0 && (
+                <Progress
+                  percent={progressPercent}
+                  status={failCount > 0 ? 'exception' : 'active'}
+                  format={(percent) => `${successCount + skipCount} / ${totalCount}`}
+                  strokeColor={{
+                    '0%': '#108ee9',
+                    '100%': '#87d068',
+                  }}
+                />
+              )}
+              
+              <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
                 <div>
-                  <Text type="secondary" style={{ fontSize: '12px' }}>Status: </Text>
-                  <Tag color={isRunning ? 'processing' : 'default'}>
-                    {isRunning ? 'Running' : 'Stopped'}
-                  </Tag>
+                  <Text type="secondary">Total: </Text>
+                  <Text strong>{totalCount}</Text>
                 </div>
-                {startTime && (
-                  <div>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>Start Time: </Text>
-                    <Text style={{ fontSize: '12px' }}>
-                      {new Date(startTime).toLocaleString('en-US')}
-                    </Text>
-                  </div>
-                )}
-                {duration !== undefined && (
-                  <div>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>Duration: </Text>
-                    <Text strong style={{ fontSize: '12px' }}>{formatDuration(duration)}</Text>
-                  </div>
-                )}
-                {lastSyncTime && (
-                  <div>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>Last Sync: </Text>
-                    <Text style={{ fontSize: '12px' }}>
-                      {new Date(lastSyncTime).toLocaleString('en-US')}
-                    </Text>
-                  </div>
-                )}
-              </Space>
-            </div>
-            
-            {/* Show progress bar only when running */}
-            {isRunning && totalCount > 0 && (
-              <Progress
-                percent={progressPercent}
-                status={failCount > 0 ? 'exception' : 'active'}
-                format={(percent) => `${successCount + skipCount} / ${totalCount}`}
-                strokeColor={{
-                  '0%': '#108ee9',
-                  '100%': '#87d068',
-                }}
-              />
-            )}
-            
-            <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-              <div>
-                <Text type="secondary">Total: </Text>
-                <Text strong>{totalCount}</Text>
+                <div>
+                  <Text type="secondary">Success: </Text>
+                  <Text strong style={{ color: '#52c41a' }}>{successCount}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">Skipped: </Text>
+                  <Text strong style={{ color: '#faad14' }}>{skipCount}</Text>
+                </div>
+                <div>
+                  <Text type="secondary">Failed: </Text>
+                  <Text strong style={{ color: '#ff4d4f' }}>{failCount}</Text>
+                </div>
               </div>
-              <div>
-                <Text type="secondary">Success: </Text>
-                <Text strong style={{ color: '#52c41a' }}>{successCount}</Text>
-              </div>
-              <div>
-                <Text type="secondary">Skipped: </Text>
-                <Text strong style={{ color: '#faad14' }}>{skipCount}</Text>
-              </div>
-              <div>
-                <Text type="secondary">Failed: </Text>
-                <Text strong style={{ color: '#ff4d4f' }}>{failCount}</Text>
-              </div>
-            </div>
-          </Space>
+            </Space>
+          </div>
         </div>
-      </div>
+      </Spin>
     );
   };
 
