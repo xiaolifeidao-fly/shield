@@ -1,12 +1,13 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { getGlobal } from '@utils/store/electron';
+import { getGlobal, setGlobal, removeGlobal } from '@utils/store/electron';
 import { UserInfo } from '@eleapi/user/user.api';
 const path = require('path');
 import log from "electron-log";
 import * as dotenv from 'dotenv';
+
 // 加载 .env 文件中的环境变量（如果还没有加载）
 if (!process.env.WRITE_CASE_API_BASE_URL) {
-  dotenv.config();
+  dotenv.config({path: path.join(__dirname, '.env')}); // 加载 .env 文件中的环境变量
 }
 
 // 定义一个 HttpError 类，扩展自 Error
@@ -28,8 +29,8 @@ function rejectHttpError(message: string, code?: any): Promise<never> {
   return Promise.reject(error);
 }
 
-// 维护 username 到 token 的映射
-const userTokenMap = new Map<string, string>();
+// Store 中的 key
+const USER_TOKEN_MAP_KEY = "userTokenMap";
 
 // 当前操作的用户信息
 let currentUserInfo: UserInfo | null = null;
@@ -61,24 +62,37 @@ function getUserInfo(username: string): UserInfo | null {
 }
 
 /**
+ * 获取用户 token 映射对象
+ */
+function getUserTokenMap(): Record<string, string> {
+  const tokenMap = getGlobal(USER_TOKEN_MAP_KEY);
+  return tokenMap && typeof tokenMap === 'object' ? tokenMap : {};
+}
+
+/**
  * 设置用户 token
  */
 export function setUserToken(username: string, token: string): void {
-  userTokenMap.set(username, token);
+  const tokenMap = getUserTokenMap();
+  tokenMap[username] = token;
+  setGlobal(USER_TOKEN_MAP_KEY, tokenMap);
 }
 
 /**
  * 获取用户 token
  */
 export function getUserToken(username: string): string | undefined {
-  return userTokenMap.get(username);
+  const tokenMap = getUserTokenMap();
+  return tokenMap[username];
 }
 
 /**
  * 清除用户 token
  */
 export function clearUserToken(username: string): void {
-  userTokenMap.delete(username);
+  const tokenMap = getUserTokenMap();
+  delete tokenMap[username];
+  setGlobal(USER_TOKEN_MAP_KEY, tokenMap);
 }
 
 // 扩展 AxiosRequestConfig 以支持自定义属性
@@ -250,7 +264,7 @@ const writeCaseInstance: AxiosInstance = axios.create({
 writeCaseInstance.interceptors.response.use(
   (response: AxiosResponse) => {
     let result = response.data;
-    if (!result.success) {
+    if (result.code != 0) {
       return rejectHttpError(
         result.error || result.message || result.errorMessage || '请求异常！',
         500
