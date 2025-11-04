@@ -80,7 +80,7 @@ export class UserImpl extends UserApi {
             throw new Error(`用户 ${username} 不存在`);
         }
         // 根据业务类型执行同步
-        log.info(`runUser: ${user} start `);
+        log.info(`runUser: ${JSON.stringify(user)} start sync`);
         if (user.businessType === 'adapundi') {
             // 调用 adapundi 同步
             await syncUserCases(username, {});
