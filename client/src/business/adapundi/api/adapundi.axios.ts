@@ -1,14 +1,11 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { getGlobal, setGlobal, removeGlobal } from '@utils/store/electron';
 import { UserInfo } from '@eleapi/user/user.api';
-const path = require('path');
 import log from "electron-log";
 import * as dotenv from 'dotenv';
+const path = require('path');
+dotenv.config({path: path.join(__dirname, '.env')}); // 加载 .env 文件中的环境变量
 
-// 加载 .env 文件中的环境变量（如果还没有加载）
-if (!process.env.WRITE_CASE_API_BASE_URL) {
-  dotenv.config({path: path.join(__dirname, '.env')}); // 加载 .env 文件中的环境变量
-}
 
 // 定义一个 HttpError 类，扩展自 Error
 class HttpError extends Error {
