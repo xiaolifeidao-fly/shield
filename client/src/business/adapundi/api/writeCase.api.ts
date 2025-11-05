@@ -1,7 +1,5 @@
 import { writeCaseInstance } from "./adapundi.axios";
-import { CaseDetail } from "./case.api";
-import { LoanPlan } from "./loan.api";
-import { CustomerInfo } from "./customer.api";
+import { CaseDetail, LoanPlan, CustomerInfo } from "../../common/entities";
 import { BusinessType } from "@eleapi/user/user.api";
 import log from "electron-log";
 /**

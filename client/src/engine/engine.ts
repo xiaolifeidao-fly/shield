@@ -388,9 +388,9 @@ export abstract class DoorEngine<T = any> {
             extraHTTPHeaders: {
                 'sec-ch-ua': getSecChUa(platform),
                 'sec-ch-ua-mobile': '?0', // 设置为移动设备
-                'sec-ch-ua-platform': `"${platform.userAgentData.platform}"`,
+                'sec-ch-ua-platform': platform?.userAgentData?.platform ? `"${platform.userAgentData.platform}"` : '"Windows"',
             },
-            userAgent: platform.userAgent,
+            userAgent: platform?.userAgent,
 
             bypassCSP : true,
             locale: 'zh-CN',
@@ -792,7 +792,7 @@ export abstract class DoorEngine<T = any> {
             extraHTTPHeaders: {
                 'sec-ch-ua': getSecChUa(platform),
                 'sec-ch-ua-mobile': '?0', // 设置为移动设备
-                'sec-ch-ua-platform': `"${platform.userAgentData.platform}"`,
+                'sec-ch-ua-platform': platform?.userAgentData?.platform ? `"${platform.userAgentData.platform}"` : '"Windows"',
             }
         }
         if(storeBrowserPath){
@@ -812,7 +812,7 @@ export abstract class DoorEngine<T = any> {
                 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,zh-TW;q=0.7',
                 'sec-ch-ua': getSecChUa(platform),
                 'sec-ch-ua-mobile': '?0', // 设置为移动设备
-                'sec-ch-ua-platform': `"${platform.userAgentData.platform}"`,
+                'sec-ch-ua-platform': platform?.userAgentData?.platform ? `"${platform.userAgentData.platform}"` : '"Windows"',
             };
         }
 
@@ -1530,6 +1530,9 @@ export abstract class DoorEngine<T = any> {
 
 export function getSecChUa(platform : any){
     if(!platform){
+        return "";
+    }
+    if(!platform.userAgentData || !platform.userAgentData.brands){
         return "";
     }
     const brands = platform.userAgentData.brands;

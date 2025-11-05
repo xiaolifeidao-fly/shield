@@ -12,6 +12,8 @@ import { registerRpc } from './register/rpc';
 import { init } from './store';
 import Store from 'electron-store';
 import { initializeScheduledTasks } from '@src/task/task';
+import { initializeBusinesses } from '@src/business';
+import { initPlatform } from '@src/engine/engine';
 // 使用安全服务器替代普通服务器
 
 
@@ -82,6 +84,8 @@ export const start = () => {
 
     app.on('ready', async ()=> {
       try {
+        // 初始化业务注册
+        initializeBusinesses();
         
         registerRpc();
         registerFileProtocol();
@@ -123,6 +127,7 @@ export const start = () => {
     });
 
     setTimeout(async () => {
+      await initPlatform();
     }, 1000);
 }
 

@@ -1,34 +1,10 @@
 import { adapundiInstance } from "./adapundi.axios";
+import { LoanPlan } from "../../common/entities";
 
 /**
- * 还款计划接口
+ * 导出公共实体类型（保持向后兼容）
  */
-export interface LoanPlan {
-  id: number;
-  loanType: string;
-  status: string;
-  loanSubType: string;
-  amount: number;
-  interestRate: number;
-  duration: string;
-  period: number;
-  periodsNumber: number;
-  periodUnit: string;
-  dueAmount: number | null;
-  minDueDate: string | null;
-  overdueDays: number;
-  gracePeriodRate: number;
-  collectionLevel: string | null;
-  principalAmount: number;
-  interestAmount: number;
-  defaultAmount: number;
-  vatAmount: number;
-  shouldRepaymentAmount: number;
-  creditQuality: string;
-  platform: string;
-  rolloverType: string | null;
-  esignFlag: boolean;
-}
+export type { LoanPlan };
 
 /**
  * 查询还款计划

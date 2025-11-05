@@ -1,533 +1,110 @@
-import { getCasePage, getCaseDetail, Case, CaseDetail } from "../api/case.api";
-import { getGlobal, setGlobal } from "../../../../../common/utils/store/electron";
-import { getLoanPlan, LoanPlan } from "../api/loan.api";
-import { decryptPhone, AuditDataType } from "../api/phone.api";
-import { getCustomerInfo, CustomerInfo } from "../api/customer.api";
 import { SyncStats, UserInfo, BusinessType } from "@eleapi/user/user.api";
-import { writeCase as writeCaseApi } from "../api/writeCase.api";
+import { businessFactoryRegistry } from "../../common/factory";
+import { BaseBusinessApi } from "../../common/base.api";
+import { getGlobal } from "../../../../../common/utils/store/electron";
 import log from "electron-log";
 
 /**
- * 运行状态内存存储（username -> running状态）
+ * 通用案例同步服务适配器
+ * 通过 businessType 获取对应的同步服务实例，适配不同业务类型
  */
-const runningStatusMap = new Map<string, boolean>();
 
 /**
- * 同步缓存数据结构
- */
-interface SyncCache {
-  [caseId: string]: string; // caseId -> 最后同步日期 (YYYY-MM-DD)
-}
-
-/**
- * 获取今天的日期字符串 (YYYY-MM-DD)
- */
-function getTodayString(): string {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-/**
- * 检查某个 caseId 今天是否已经同步过
- */
-function shouldSync(cache: SyncCache, caseId: string): boolean {
-  const today = getTodayString();
-  const lastSyncDate = cache[caseId];
-  
-  // 如果没有缓存记录，或者最后同步日期不是今天，则需要同步
-  return !lastSyncDate || lastSyncDate !== today;
-}
-
-/**
- * 更新缓存：记录某个 caseId 今天已同步
- */
-function updateCache(cache: SyncCache, caseId: string): void {
-  const today = getTodayString();
-  cache[caseId] = today;
-}
-
-/**
- * 获取用户的同步缓存
- */
-function getUserSyncCache(username: string): SyncCache {
-  const cacheKey = `sync_cache_${username}`;
-  const cache = getGlobal(cacheKey);
-  return cache || {};
-}
-
-/**
- * 保存用户的同步缓存
- */
-function saveUserSyncCache(username: string, cache: SyncCache): void {
-  const cacheKey = `sync_cache_${username}`;
-  setGlobal(cacheKey, cache);
-}
-
-/**
- * 获取停止标志的 key
- */
-function getStopFlagKey(username: string): string {
-  return `sync_stop_${username}`;
-}
-
-/**
- * 设置停止标志
- */
-function setStopFlag(username: string, stop: boolean): void {
-  const flagKey = getStopFlagKey(username);
-  setGlobal(flagKey, stop);
-}
-
-/**
- * 获取停止标志
- */
-function getStopFlag(username: string): boolean {
-  const flagKey = getStopFlagKey(username);
-  return getGlobal(flagKey) || false;
-}
-
-/**
- * 当日断点续传数据结构
- */
-interface ResumeData {
-  date: string; // 日期 (YYYY-MM-DD)
-  pageNum: number; // 页码
-}
-
-/**
- * 获取当日断点续传的 key
- */
-function getResumeKey(username: string): string {
-  return `sync_resume_${username}`;
-}
-
-/**
- * 获取用户的断点续传页码（如果是当日，返回保存的页码；否则返回 1）
- */
-function getUserResumePageNum(username: string): number {
-  const resumeKey = getResumeKey(username);
-  const resumeData: ResumeData | undefined = getGlobal(resumeKey);
-  const today = getTodayString();
-  
-  // 如果没有保存的数据，或者不是当日的，返回 1
-  if (!resumeData || resumeData.date !== today) {
-    return 1;
-  }
-  
-  // 如果是当日的，返回保存的页码
-  return resumeData.pageNum || 1;
-}
-
-/**
- * 保存用户的断点续传页码（当日）
- */
-function saveUserResumePageNum(username: string, pageNum: number): void {
-  const resumeKey = getResumeKey(username);
-  const today = getTodayString();
-  const resumeData: ResumeData = {
-    date: today,
-    pageNum: pageNum,
-  };
-  setGlobal(resumeKey, resumeData);
-}
-
-/**
- * 清除用户的断点续传页码
- */
-function clearUserResumePageNum(username: string): void {
-  const resumeKey = getResumeKey(username);
-  setGlobal(resumeKey, 1);
-}
-
-/**
- * 设置用户的运行状态（内存中）
- */
-function setRunningStatus(username: string, running: boolean): void {
-  runningStatusMap.set(username, running);
-}
-
-/**
- * 获取用户的运行状态（内存中）
- */
-function getRunningStatus(username: string): boolean {
-  return runningStatusMap.get(username) || false;
-}
-
-/**
- * 获取用户的同步统计
- */
-function getUserSyncStats(username: string): SyncStats {
-  const statsKey = `sync_stats_${username}`;
-  const stats = getGlobal(statsKey);
-  const baseStats = stats || {
-    totalCount: 0,
-    successCount: 0,
-    skipCount: 0,
-    failCount: 0,
-    lastSyncTime: '',
-  };
-  // 从内存中获取 running 状态
-  return {
-    ...baseStats,
-    running: getRunningStatus(username),
-  };
-}
-
-/**
- * 保存用户的同步统计（不保存 running 状态到 store）
- */
-function saveUserSyncStats(username: string, stats: SyncStats): void {
-  const statsKey = `sync_stats_${username}`;
-  // 只保存非 running 字段到 store
-  const { running, ...statsToSave } = stats;
-  setGlobal(statsKey, statsToSave);
-  // 单独处理 running 状态到内存
-  if (running !== undefined) {
-    setRunningStatus(username, running);
-  }
-}
-
-/**
- * 获取用户信息
- */
-function getUserInfo(username: string): UserInfo | null {
-  const USER_LIST_KEY = "userList";
-  const userList = getGlobal(USER_LIST_KEY);
-  if (!userList || !Array.isArray(userList)) {
-    return null;
-  }
-  return userList.find((u: UserInfo) => u.username === username) || null;
-}
-
-/**
- * 写入案例数据
- * @param caseDetail 案例详情（手机号已解密为明文）
- * @param loanPlan 还款计划列表
- * @param customerInfo 客户信息
- * @param businessType 业务类型（用于设置 loanSource）
- */
-async function writeCase(
-  caseDetail: CaseDetail, 
-  loanPlan: LoanPlan[], 
-  customerInfo: CustomerInfo,
-  businessType: BusinessType | undefined
-): Promise<void> {
-  // 调用 writeCase API 接口
-  await writeCaseApi(caseDetail, loanPlan, customerInfo, businessType);
-}
-
-/**
- * 初始化同步统计信息
- */
-function initSyncStats(): SyncStats {
-  return {
-    totalCount: 0,
-    successCount: 0,
-    skipCount: 0,
-    failCount: 0,
-    lastSyncTime: new Date().toISOString(),
-  };
-}
-
-/**
- * 检查是否还有更多页需要查询
- */
-function hasMorePages(
-  recordsLength: number,
-  pageNum: number,
-  totalPages: number,
-  pageSize: number
-): boolean {
-  return recordsLength >= pageSize && pageNum < totalPages;
-}
-
-/**
- * 同步单个案例
- * @param username 用户名
- * @param caseItem 案例信息
- * @param cache 同步缓存
- * @param stats 统计信息
- * @param enableDeduplication 是否启用去重
- * @returns 是否同步成功
- */
-async function syncSingleCase(
-  username: string,
-  caseItem: Case,
-  cache: SyncCache,
-  stats: SyncStats,
-  enableDeduplication: boolean = true
-): Promise<boolean> {
-  // 如果启用去重，检查是否需要同步（每天最多同步成功1次）
-  if (enableDeduplication && !shouldSync(cache, caseItem.caseId)) {
-    stats.skipCount++;
-    return false;
-  }
-
-  try {
-    // 查询案例详情
-    if (!caseItem.product) {
-      log.warn(`Case ${caseItem.caseId} has no product, skipping detail query`);
-      stats.failCount++;
-      return false;
-    }
-
-    const caseDetail = await getCaseDetail(caseItem.product, caseItem.id);
-    // 获取还款计划
-    let loanPlan: LoanPlan[] = [];
-    try {
-      loanPlan = await getLoanPlan(caseDetail.customerId);
-    } catch (error) {
-      log.warn(`Failed to get loan plan for customer ${caseDetail.customerId}:`, error);
-      // 还款计划获取失败不影响主流程，使用空数组
-    }
-
-    // 解密手机号和备用手机号，替换为明文
-    
-    // 解密本人手机号
-    if (caseDetail.mobile) {
-      try {
-        const decryptedMobile = await decryptPhone({
-          auditDataType: AuditDataType.CASE_DETAIL_BASIC_INFO_OWN_PHONE,
-          customerId: caseDetail.customerId,
-          productEnum: caseItem.product,
-        });
-        caseDetail.mobile = decryptedMobile;
-      } catch (error) {
-        log.warn(`Failed to decrypt mobile for case ${caseItem.caseId}:`, error);
-        // 解密失败时保留原值
-      }
-    }
-
-    // 解密备用手机号
-    if (caseDetail.backupMobile) {
-      try {
-        const decryptedBackupMobile = await decryptPhone({
-          auditDataType: AuditDataType.CASE_DETAIL_BASIC_INFO_BACKUP_PHONE,
-          customerId: caseDetail.customerId,
-          productEnum: caseItem.product,
-        });
-        caseDetail.backupMobile = decryptedBackupMobile;
-      } catch (error) {
-        log.warn(`Failed to decrypt backupMobile for case ${caseItem.caseId}:`, error);
-        // 解密失败时保留原值
-      }
-    }
-
-    // 获取客户信息
-    let customerInfo: CustomerInfo;
-    try {
-      customerInfo = await getCustomerInfo(caseItem.product, caseDetail.customerId);
-    } catch (error) {
-      log.warn(`Failed to get customer info for customer ${caseDetail.customerId}:`, error);
-      // 客户信息获取失败不影响主流程，但需要抛出错误或使用默认值
-      // 这里根据业务需求决定：如果客户信息必需，则抛出错误；如果可选，可以使用默认值或空对象
-      throw new Error(`Failed to get customer info for customer ${caseDetail.customerId}`);
-    }
-
-    // 获取用户的 businessType
-    const userInfo = getUserInfo(username);
-    const businessType = userInfo?.businessType;
-
-    // 写入案例数据（使用解密后的数据）
-    await writeCase(caseDetail, loanPlan, customerInfo, businessType);
-
-    // 如果启用去重，更新缓存：记录今天已同步
-    if (enableDeduplication) {
-      updateCache(cache, caseItem.caseId);
-      // 立即保存缓存到 store
-      saveUserSyncCache(username, cache);
-    }
-
-    // 更新统计：成功数量
-    stats.successCount++;
-    
-    // 保存统计信息
-    saveUserSyncStats(username, stats);
-
-    return true;
-  } catch (error) {
-    // 写入失败，不更新缓存，计入失败数量
-    log.error(`Failed to sync case ${caseItem.caseId}:`, error);
-    stats.failCount++;
-    saveUserSyncStats(username, stats);
-    return false;
-  }
-}
-
-/**
- * 同步一页的案例数据
- * @param username 用户名
- * @param records 当前页的案例列表
- * @param cache 同步缓存
- * @param stats 统计信息
- * @param enableDeduplication 是否启用去重
- * @returns 是否被停止
- */
-async function syncPageCases(
-  username: string,
-  records: Case[],
-  cache: SyncCache,
-  stats: SyncStats,
-  enableDeduplication: boolean = true
-): Promise<boolean> {
-  for (const caseItem of records) {
-    // 检查停止标志
-    if (getStopFlag(username)) {
-      return true; // 被停止
-    }
-    stats.totalCount++;
-    await syncSingleCase(username, caseItem, cache, stats, enableDeduplication);
-  }
-  return false; // 未被停止
-}
-
-/**
- * 同步用户的案例列表
- * @param userInfo 用户信息
+ * 同步用户的案例列表（通用适配器）
+ * 根据 userInfo.businessType 自动获取对应的同步服务
+ * @param userInfo 用户信息（必须包含 businessType）
  * @param params 额外的查询参数（如 product、enableDeduplication、enableResume 等）
  */
 export async function syncUserCases(
   userInfo: UserInfo,
   params: { product?: string; enableDeduplication?: boolean; enableResume?: boolean; [key: string]: any } = {}
 ): Promise<SyncStats> {
-  // 清除之前的停止标志
-  const username = userInfo.username;
-  setStopFlag(username, false);
-  
-  // 导入并设置当前用户
-  const { setCurrentUser } = await import('../api/adapundi.axios');
-  setCurrentUser(userInfo);
-  
-  // 获取或初始化统计信息
-  const existingStats = getUserSyncStats(username);
-  const stats = {
-    ...existingStats,
-    totalCount: 0,
-    successCount: 0,
-    skipCount: 0,
-    failCount: 0,
-    running: true,
-    startTime: new Date().toISOString(),
-    duration: 0,
-    lastSyncTime: new Date().toISOString(),
-  };
-  
-  const cache = getUserSyncCache(username);
-  const startTimeMs = Date.now();
-  // 从参数中获取去重选项，默认为 true
-  const enableDeduplication = params.enableDeduplication !== undefined ? params.enableDeduplication : true;
-  // 从参数中获取断点续传选项，默认为 false
-  const enableResume = params.enableResume !== undefined ? params.enableResume : false;
-
-  // 根据是否启用断点续传来决定起始页码
-  let pageNum: number;
-  if (enableResume) {
-    // 如果启用断点续传，从当日保存的页码开始
-    pageNum = getUserResumePageNum(username);
-    log.info(`Resume enabled, starting from page ${pageNum}`);
-  } else {
-    // 如果不启用断点续传，从第一页开始，并清除保存的页码
-    pageNum = 1;
-    clearUserResumePageNum(username);
-    log.info(`Resume disabled, starting from page 1`);
+  if (!userInfo.businessType) {
+    throw new Error(`用户 ${userInfo.username} 未设置业务类型`);
   }
-  
-  const pageSize = 20;
 
-  try {
-    // 保存初始状态
-    log.info(`saveUserSyncStats: ${JSON.stringify(stats)}`);
-    saveUserSyncStats(username, stats);
-    // todo 测试用，后续删除
-    while (true) {
-      // 检查停止标志
-      if (getStopFlag(username)) {
-        stats.running = false;
-        stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
-        saveUserSyncStats(username, stats);
-        break;
-      }
-      log.info("start sync page: " + pageNum);
-      // 查询当前页的案例列表
-      const pageResponse = await getCasePage({
-        pageNum,
-        pageSize,
-        ...params,
-      });
-      log.info(`pageResponse: ${JSON.stringify(pageResponse.total)} total pages: ${pageResponse.pages} `);
-      // 如果没有数据，结束循环
-      if (!pageResponse.records || pageResponse.records.length === 0) {
-        break;
-      }
-
-      // 同步当前页的案例
-      const stopped = await syncPageCases(username, pageResponse.records, cache, stats, enableDeduplication);
-      
-      // 更新运行时长
-      stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
-      saveUserSyncStats(username, stats);
-
-      if (stopped) {
-        stats.running = false;
-        saveUserSyncStats(username, stats);
-        break;
-      }
-
-      // 检查是否还有更多页
-      if (!hasMorePages(
-        pageResponse.records.length,
-        pageNum,
-        pageResponse.pages,
-        pageSize
-      )) {
-        break;
-      }
-
-      // 准备进入下一页
-      pageNum++;
-      
-      // 如果启用断点续传，在进入下一页前保存页码到 store
-      if (enableResume) {
-        saveUserResumePageNum(username, pageNum);
-        log.info(`Saved resume pageNum ${pageNum} for user ${username}`);
-      }
-    }
-
-    // 同步完成，更新状态
-    stats.running = false;
-    stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
-    stats.lastSyncTime = new Date().toISOString();
-    saveUserSyncStats(username, stats);
-    
-    // 如果启用断点续传，同步完成时清除断点续传页码（当日同步已完成）
-    if (enableResume) {
-      clearUserResumePageNum(username);
-      log.info(`Sync completed, cleared resume pageNum for user ${username}`);
-    }
-
-    return stats;
-  } catch (error) {
-    // 即使出错，也要保存已处理的统计信息
-    stats.running = false;
-    stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
-    saveUserSyncStats(username, stats);
-    throw error;
+  // 检查业务类型是否已注册
+  if (!businessFactoryRegistry.hasBusinessType(userInfo.businessType)) {
+    throw new Error(`业务类型 ${userInfo.businessType} 未注册`);
   }
+
+  // 根据 businessType 获取对应的同步服务
+  const syncService = businessFactoryRegistry.getSyncService(userInfo.businessType);
+  
+  // 调用同步服务的 syncUserCases 方法
+  return await syncService.syncUserCases(userInfo, params);
 }
 
 /**
- * 获取用户的同步统计
+ * 获取用户的同步统计（通用适配器）
+ * 注意：此方法需要从用户信息中获取 businessType
  */
 export function getUserSyncStatsInfo(username: string): SyncStats {
-  return getUserSyncStats(username);
+  // 从 store 中获取用户信息以确定 businessType
+  const USER_LIST_KEY = "userList";
+  const userList = getGlobal(USER_LIST_KEY);
+  if (!userList || !Array.isArray(userList)) {
+    throw new Error(`用户 ${username} 不存在`);
+  }
+  const userInfo = userList.find((u: UserInfo) => u.username === username);
+  if (!userInfo || !userInfo.businessType) {
+    throw new Error(`用户 ${username} 未设置业务类型`);
+  }
+
+  // 根据 businessType 获取对应的同步服务
+  const syncService = businessFactoryRegistry.getSyncService(userInfo.businessType);
+  return syncService.getUserSyncStatsInfo(username);
 }
 
 /**
- * 停止用户的同步任务
+ * 停止用户的同步任务（通用适配器）
+ * 注意：此方法需要从用户信息中获取 businessType
  */
 export function stopUserSync(username: string): void {
-  setStopFlag(username, true);
+  // 从 store 中获取用户信息以确定 businessType
+  const USER_LIST_KEY = "userList";
+  const userList = getGlobal(USER_LIST_KEY);
+  if (!userList || !Array.isArray(userList)) {
+    throw new Error(`用户 ${username} 不存在`);
+  }
+  const userInfo = userList.find((u: UserInfo) => u.username === username);
+  if (!userInfo || !userInfo.businessType) {
+    throw new Error(`用户 ${username} 未设置业务类型`);
+  }
+
+  // 根据 businessType 获取对应的同步服务
+  const syncService = businessFactoryRegistry.getSyncService(userInfo.businessType);
+  syncService.stopUserSync(username);
+}
+
+/**
+ * 通过工厂获取指定业务类型的业务 API 实例
+ * 用于在需要调用不同业务类型 API 的场景
+ * @param businessType 业务类型
+ * @returns 业务 API 实例
+ */
+export function getBusinessApi(businessType: BusinessType): BaseBusinessApi {
+  if (!businessFactoryRegistry.hasBusinessType(businessType)) {
+    throw new Error(`业务类型 ${businessType} 未注册`);
+  }
+  return businessFactoryRegistry.getBusinessApi(businessType);
+}
+
+/**
+ * 通过用户名获取对应的业务 API 实例
+ * 从用户信息中获取 businessType，然后返回对应的 API 实例
+ * @param username 用户名
+ * @returns 业务 API 实例
+ */
+export function getBusinessApiByUsername(username: string): BaseBusinessApi {
+  const USER_LIST_KEY = "userList";
+  const userList = getGlobal(USER_LIST_KEY);
+  if (!userList || !Array.isArray(userList)) {
+    throw new Error(`用户 ${username} 不存在`);
+  }
+  const userInfo = userList.find((u: UserInfo) => u.username === username);
+  if (!userInfo || !userInfo.businessType) {
+    throw new Error(`用户 ${username} 未设置业务类型`);
+  }
+  return getBusinessApi(userInfo.businessType);
 }

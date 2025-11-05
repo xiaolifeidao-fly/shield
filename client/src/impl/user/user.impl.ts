@@ -1,6 +1,6 @@
 import { UserApi, UserInfo } from "@eleapi/user/user.api";
 import { getGlobal, setGlobal } from "@utils/store/electron";
-import { syncUserCases, getUserSyncStatsInfo, stopUserSync } from "@src/business/adapundi/service/case.sync";
+import { businessFactoryRegistry } from "@src/business";
 import log from "electron-log";
 const USER_LIST_KEY = "userList";
 
@@ -33,10 +33,30 @@ export class UserImpl extends UserApi {
     async getUserInfoList(): Promise<UserInfo[]> {
         const userList = this.getUserList();
         // 为每个用户填充 syncStats
-        return userList.map(user => ({
-            ...user,
-            syncStats: getUserSyncStatsInfo(user.username)
-        }));
+        return userList.map(user => {
+            try {
+                if (user.businessType && businessFactoryRegistry.hasBusinessType(user.businessType)) {
+                    const syncService = businessFactoryRegistry.getSyncService(user.businessType);
+                    return {
+                        ...user,
+                        syncStats: syncService.getUserSyncStatsInfo(user.username)
+                    };
+                }
+            } catch (error) {
+                log.error(`Failed to get sync stats for user ${user.username}:`, error);
+            }
+            return {
+                ...user,
+                syncStats: {
+                    totalCount: 0,
+                    successCount: 0,
+                    skipCount: 0,
+                    failCount: 0,
+                    lastSyncTime: '',
+                    running: false,
+                }
+            };
+        });
     }
 
     async addUser(userInfo: UserInfo): Promise<void> {
@@ -79,21 +99,34 @@ export class UserImpl extends UserApi {
         if (!user) {
             throw new Error(`用户 ${username} 不存在`);
         }
-        // 根据业务类型执行同步
-        log.info(`runUser: ${JSON.stringify(user)} start sync, enableDeduplication: ${enableDeduplication}, enableResume: ${enableResume}`);
-        if (user.businessType === 'adapundi') {
-            // 调用 adapundi 同步
-            await syncUserCases(user, {
-                product: 'AP',
-                enableDeduplication,
-                enableResume,
-            });
-        } else if (user.businessType === 'singa') {
-            // TODO: 实现 singa 同步逻辑
-            throw new Error('Singa 业务类型暂未实现');
-        } else {
+        
+        if (!user.businessType) {
             throw new Error(`用户 ${username} 未设置业务类型`);
         }
+
+        // 根据业务类型获取对应的同步服务
+        if (!businessFactoryRegistry.hasBusinessType(user.businessType)) {
+            throw new Error(`业务类型 ${user.businessType} 未注册`);
+        }
+
+        log.info(`runUser: ${JSON.stringify(user)} start sync, enableDeduplication: ${enableDeduplication}, enableResume: ${enableResume}`);
+        
+        const syncService = businessFactoryRegistry.getSyncService(user.businessType);
+        
+        // 构建同步参数（不同业务类型可能有不同的参数）
+        const syncParams: any = {
+            enableDeduplication,
+            enableResume,
+        };
+        
+        // Adapundi 特定的参数
+        if (user.businessType === 'adapundi') {
+            syncParams.product = 'AP';
+        }
+        
+        // TODO: 可以在这里添加其他业务类型的特定参数
+        
+        await syncService.syncUserCases(user, syncParams);
     }
 
     async stopUser(username: string): Promise<void> {
@@ -102,15 +135,17 @@ export class UserImpl extends UserApi {
         if (!user) {
             throw new Error(`用户 ${username} 不存在`);
         }
-        // 根据业务类型停止同步
-        if (user.businessType === 'adapundi') {
-            // 停止 adapundi 同步
-            stopUserSync(username);
-        } else if (user.businessType === 'singa') {
-            // TODO: 实现 singa 停止逻辑
-            throw new Error('Singa 业务类型暂未实现');
-        } else {
+        
+        if (!user.businessType) {
             throw new Error(`用户 ${username} 未设置业务类型`);
         }
+
+        // 根据业务类型获取对应的同步服务并停止
+        if (!businessFactoryRegistry.hasBusinessType(user.businessType)) {
+            throw new Error(`业务类型 ${user.businessType} 未注册`);
+        }
+
+        const syncService = businessFactoryRegistry.getSyncService(user.businessType);
+        syncService.stopUserSync(username);
     }
 }
