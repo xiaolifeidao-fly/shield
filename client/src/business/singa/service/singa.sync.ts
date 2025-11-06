@@ -12,16 +12,5 @@ export class SingaCaseSyncService extends BaseCaseSyncService {
     super(businessApi);
   }
 
-  // TODO: 如果需要定制 Singa 特定的同步逻辑，可以重写以下方法：
-  // - syncSingleCase: 自定义单个案例的同步逻辑
-  // - decryptPhoneNumbers: 如果 Singa 有特殊的手机号解密逻辑
-  // - writeCase: 如果 Singa 需要不同的写入逻辑
-
-
-  writeCase(caseDetail: CaseDetail, loanPlan: LoanPlan[], customerInfo: CustomerInfo, businessType: BusinessType | undefined): Promise<void> {
-    return Promise.resolve();
-  }
-
-
 }
 

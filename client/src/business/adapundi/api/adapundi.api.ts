@@ -22,7 +22,7 @@ export class AdapundiBusinessApi extends BaseBusinessApi {
     return getCurrentUser();
   }
 
-  async getCasePage(params: CasePageParams): Promise<CasePageResponse> {
+  async getCasePage(params: CasePageParams): Promise<CasePageResponse<Case>> {
     const { pageNum = 1, pageSize = 20, ...restParams } = params;
     const response = await adapundiInstance.get("/hive-collection-admin/cases/page", {
       params: {
@@ -31,7 +31,7 @@ export class AdapundiBusinessApi extends BaseBusinessApi {
         ...restParams,
       },
     });
-    return response as unknown as CasePageResponse;
+    return response as unknown as CasePageResponse<Case>;
   }
 
   async getCaseDetail(product: string, caseItem : Case): Promise<CaseDetail> {

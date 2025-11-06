@@ -5,8 +5,9 @@ import { UserInfo, BusinessType } from '@eleapi/user/user.api';
 /**
  * 业务 API 抽象基类
  * 定义所有业务类型必须实现的 API 接口
+ * @template TCase Case 类型或其子类型，默认为 Case
  */
-export abstract class BaseBusinessApi {
+export abstract class BaseBusinessApi<TCase extends Case = Case> {
   /**
    * 获取该业务类型的 axios 实例
    */
@@ -27,23 +28,23 @@ export abstract class BaseBusinessApi {
    * @param params 查询参数
    * @returns 分页响应数据
    */
-  abstract getCasePage(params: CasePageParams): Promise<CasePageResponse>;
+  abstract getCasePage(params: CasePageParams): Promise<CasePageResponse<TCase>>;
 
   /**
    * 获取案件详情
    * @param product 产品类型
-   * @param id 案件ID
+   * @param caseItem 案件对象
    * @returns 案件详情数据
    */
-  abstract getCaseDetail(product: string, caseId: Case): Promise<CaseDetail>;
+  abstract getCaseDetail(product: string, caseItem: TCase): Promise<CaseDetail>;
 
   /**
    * 获取客户信息
    * @param product 产品类型
-   * @param customerId 客户ID
+   * @param caseItem 案件对象
    * @returns 客户信息
    */
-  abstract getCustomerInfo(product: string, caseItem : Case): Promise<CustomerInfo>;
+  abstract getCustomerInfo(product: string, caseItem : TCase): Promise<CustomerInfo>;
 
   /**
    * 获取还款计划
@@ -57,7 +58,7 @@ export abstract class BaseBusinessApi {
    * @param params 解密参数
    * @returns 解密后的手机号
    */
-  abstract decryptPhone?(params: any): Promise<string>;
+  abstract decryptPhone?(params: any): Promise<string|undefined>;
 
   /**
    * 写入案例数据

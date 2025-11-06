@@ -249,10 +249,9 @@ export abstract class BaseCaseSyncService {
         stats.failCount++;
         return false;
       }
-      log.info(`syncSingleCase caseItem: ${JSON.stringify(caseItem)}`);
+      // log.info(`syncSingleCase caseItem: ${JSON.stringify(caseItem)}`);
       // 获取案例详情
       const caseDetail = await this.businessApi.getCaseDetail(caseItem.product, caseItem);
-      
       // 获取还款计划
       let loanPlan: LoanPlan[] = [];
       try {
@@ -272,14 +271,12 @@ export abstract class BaseCaseSyncService {
         log.warn(`Failed to get customer info for customer ${caseDetail.customerId}:`, error);
         throw new Error(`Failed to get customer info for customer ${caseDetail.customerId}`);
       }
-
       // 获取用户的 businessType
       const userInfo = getUserInfo(username);
       const businessType = userInfo?.businessType;
 
       // 写入案例数据
       await this.writeCase(caseDetail, loanPlan, customerInfo, businessType);
-
       // 如果启用去重，更新缓存
       if (enableDeduplication) {
         updateCache(cache, caseItem.caseId);
@@ -303,16 +300,17 @@ export abstract class BaseCaseSyncService {
    */
   protected async decryptPhoneNumbers(caseDetail: CaseDetail, caseItem: Case): Promise<void> {
     // 默认实现：如果业务 API 支持解密，则调用
-    if (this.businessApi.decryptPhone) {
       // 解密本人手机号
       if (caseDetail.mobile) {
         try {
-          const decryptedMobile = await this.businessApi.decryptPhone({
+          const decryptedMobile = await this.businessApi.decryptPhone?.({
             auditDataType: 'CASE_DETAIL_BASIC_INFO_OWN_PHONE',
             customerId: caseDetail.customerId,
             productEnum: caseItem.product,
           });
-          caseDetail.mobile = decryptedMobile;
+          if (decryptedMobile) {  
+            caseDetail.mobile = decryptedMobile;
+          }
         } catch (error) {
           log.warn(`Failed to decrypt mobile for case ${caseItem.caseId}:`, error);
         }
@@ -321,17 +319,18 @@ export abstract class BaseCaseSyncService {
       // 解密备用手机号
       if (caseDetail.backupMobile) {
         try {
-          const decryptedBackupMobile = await this.businessApi.decryptPhone({
+          const decryptedBackupMobile = await this.businessApi.decryptPhone?.({
             auditDataType: 'CASE_DETAIL_BASIC_INFO_BACKUP_PHONE',
             customerId: caseDetail.customerId,
             productEnum: caseItem.product,
           });
-          caseDetail.backupMobile = decryptedBackupMobile;
+          if (decryptedBackupMobile) {
+            caseDetail.backupMobile = decryptedBackupMobile;
+          }
         } catch (error) {
           log.warn(`Failed to decrypt backupMobile for case ${caseItem.caseId}:`, error);
         }
       }
-    }
   }
 
   /**
@@ -421,6 +420,7 @@ export abstract class BaseCaseSyncService {
           break;
         }
         
+        const startTime = Date.now();
         log.info("start sync page: " + pageNum);
         const pageResponse = await this.businessApi.getCasePage({
           pageNum,
@@ -428,7 +428,7 @@ export abstract class BaseCaseSyncService {
           ...params,
         });
         
-        log.info(`pageResponse: ${JSON.stringify(pageResponse.total)} total pages: ${pageResponse.pages} `);
+        log.info(`pageResponse: ${JSON.stringify(pageResponse.total)} total pages: ${pageResponse.pages} cost: ${Math.round((Date.now() - startTime) / 1000)}s`);
         
         if (!pageResponse.records || pageResponse.records.length === 0) {
           break;

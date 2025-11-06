@@ -11,10 +11,7 @@ export async function getEngineInstance(resourceId: string): Promise<EngineInsta
     if (engineInstances.has(resourceId)) {
         return engineInstances.get(resourceId)!;
     }
-    const engine = new EngineInstance(resourceId, false
-
-        
-    );
+    const engine = new EngineInstance(resourceId);
     engineInstances.set(resourceId, engine);
     return engine;
 }
@@ -31,14 +28,7 @@ export async function getPage(resourceId: string, url: string): Promise<Page | u
             }
             return page;
         }
-        if(!page.url().includes(url)) {
-            const engine = await getEngineInstance(resourceId);
-            page = await engine.init(url);
-            if(page) {
-                pageInstances.set(resourceId, page);
-            }
-            return page;
-        }
+        await page.goto(url);
         return page;
     }
     const engine = await getEngineInstance(resourceId);
