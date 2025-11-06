@@ -36,7 +36,7 @@ export class AdapundiBusinessApi extends BaseBusinessApi {
 
   async getCaseDetail(product: string, caseItem : Case): Promise<CaseDetail> {
     const response = await adapundiInstance.get(
-      `/hive-collection-admin/cases/${product}/${caseItem.caseId}/detail`
+      `/hive-collection-admin/cases/${product}/${caseItem.id}/detail`
     );
     return response as unknown as CaseDetail;
   }
