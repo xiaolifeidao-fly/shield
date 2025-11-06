@@ -10,7 +10,9 @@
     "start": "electron .",
     "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "package:mac": "sh mac/package_mac.sh",
-    "package:win": "sh mac/package_win.sh"
+    "package:win": "sh mac/package_win.sh",
+    "package:win-by-win": ".\\win\\package_win.bat"
+
   },
   "build": {
     "appId": "com.x.shield.assistant.desk.app",
