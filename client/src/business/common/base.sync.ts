@@ -288,7 +288,7 @@ export abstract class BaseCaseSyncService {
 
       return true;
     } catch (error) {
-      log.error(`Failed to sync case ${caseItem.caseId}:`, error);
+      log.error(`Failed to sync case ${caseItem}:`, error);
       stats.failCount++;
       saveUserSyncStats(username, stats);
       return false;
