@@ -135,6 +135,7 @@ export interface CaseDetail {
   expireVatAmount: number;
   backupMobile: string;
   createTime: string;
+  whatsUpNum : string | null;
 }
 
 /**

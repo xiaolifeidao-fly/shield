@@ -26,7 +26,7 @@ class SingaSyncServiceFactory implements BusinessSyncServiceFactory {
  * 注册 Singa 业务
  */
 export function registerSingaBusiness(): void {
-  businessFactoryRegistry.registerApiFactory('singa', new SingaApiFactory());
-  businessFactoryRegistry.registerSyncServiceFactory('singa', new SingaSyncServiceFactory());
+  businessFactoryRegistry.registerApiFactory('SINGA', new SingaApiFactory());
+  businessFactoryRegistry.registerSyncServiceFactory('SINGA', new SingaSyncServiceFactory());
 }
 

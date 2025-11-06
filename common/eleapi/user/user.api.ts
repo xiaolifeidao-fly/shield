@@ -1,6 +1,6 @@
 import { ElectronApi, InvokeType, Protocols } from "../base";
 
-export type BusinessType = 'adapundi' | 'singa';
+export type BusinessType = 'adapundi' | 'SINGA';
 
 /**
  * 同步统计数据结构

@@ -139,7 +139,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
       customerId: caseItem.customerId,
       overdueDay: caseItem.overdueDay || caseItem.dpd || 0,
       reviewerId: caseItem.reviewerId || null,
-      reviewerName: caseItem.reviewerName || caseItem.assignedBy || null,
+      reviewerName: caseItem.assignedBy || null,
       customerTag: caseItem.customerTag || null,
       riskGrade: caseItem.riskGrade || (caseItem.priScore !== null && caseItem.priScore !== undefined ? String(caseItem.priScore) : null),
       clearedNumber: caseItem.clearedNumber || 0,
@@ -175,6 +175,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
       expireVatAmount: 0,
       backupMobile: '',
       createTime: caseItem.createTime || new Date().toISOString(),
+      whatsUpNum: caseItem.waNumber || null,
     };
     return Promise.resolve(caseDetail);
   } 
@@ -299,94 +300,15 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
             const id = parseInt(idMatch[1], 10);
             if (isNaN(id)) return;
 
-            // 解析各个字段
+            // 获取所有 td 元素，按表格列顺序解析
+            const cells = Array.from(row.querySelectorAll('td'));
+            
+            // 按照表格列顺序解析各个字段（跳过第1列复选框）
+            // 1. Order # - 订单号
             const orderNumberEl = row.querySelector('.orderNumber');
             const caseId = orderNumberEl?.textContent?.trim() || '';
-
-            const borrowerNameEl = row.querySelector('.borrowerName');
-            const fullName = borrowerNameEl?.textContent?.trim() || '';
-
-            const borrowerPhoneEl = row.querySelector('.borrowerPhone');
-            const mobile = borrowerPhoneEl?.textContent?.trim() || '';
-
-            const borrowerWaEl = row.querySelector('.borrowerWa');
-            const borrowerEmailEl = row.querySelector('.borrowerEmail');
-            const productEl = row.querySelector('.product');
-            const installmentEl = row.querySelector('.installment');
-            const collectionLevelEl = row.querySelector('.collectionLevel');
             
-            // 查找逾期天数（在带有 text-danger 的 span 中，或者直接查找数字）
-            let overdueDay = 0;
-            const overdueDayEl = Array.from(row.querySelectorAll('td')).find((td: any) => {
-              const textDangerEl = td.querySelector('.text-danger');
-              if (textDangerEl) {
-                const text = textDangerEl.textContent?.trim() || '';
-                const num = parseInt(text, 10);
-                if (!isNaN(num) && num >= 0) {
-                  overdueDay = num;
-                  return true;
-                }
-              }
-              // 也检查 td 本身是否包含数字和 text-danger
-              const text = (td as any).textContent?.trim() || '';
-              const num = parseInt(text, 10);
-              if (!isNaN(num) && num >= 0 && td.querySelector('.text-danger')) {
-                overdueDay = num;
-                return true;
-              }
-              return false;
-            });
-
-            // 查找所有金额字段（包含 "Rp." 的文本）
-            const amountCells = Array.from(row.querySelectorAll('td')).filter((td: any) => {
-              return td.textContent?.includes('Rp.');
-            });
-            
-            // 解析金额：从页面中提取所有金额
-            const amounts: number[] = [];
-            amountCells.forEach((cell: any) => {
-              const text = cell.textContent?.trim() || '';
-              // 匹配所有 Rp. 后面的数字（可能包含千位分隔符 .）
-              const matches = text.match(/Rp\.\s*([\d.]+)/g);
-              if (matches) {
-                matches.forEach((match: string) => {
-                  const numStr = match.replace(/Rp\.\s*/gi, '').replace(/\./g, '');
-                  const num = parseFloat(numStr);
-                  if (!isNaN(num) && num > 0) {
-                    amounts.push(num);
-                  }
-                });
-              }
-            });
-            
-            // 根据 JSON 数据示例，通常有多个金额字段
-            // 从页面结构看，可能有：principleAmount, amount (总金额) 等
-            let principleAmount = 0;
-            let amount = 0;
-            if (amounts.length > 0) {
-              // 通常第一个较小的金额是本金额，最后一个较大的金额是总金额
-              amounts.sort((a, b) => a - b);
-              if (amounts.length >= 2) {
-                principleAmount = amounts[0];
-                amount = amounts[amounts.length - 1];
-              } else {
-                amount = amounts[0];
-                principleAmount = amounts[0];
-              }
-            }
-
-            // 从 data-id 获取 customerId（如果有）
-            // 根据 JSON 数据，customerId 通常等于 id
-            let customerId = id;
-            const dataIdEl = row.querySelector('[data-id]');
-            if (dataIdEl) {
-              const dataId = parseInt(dataIdEl.getAttribute('data-id') || '0', 10);
-              if (!isNaN(dataId) && dataId > 0) {
-                customerId = dataId;
-              }
-            }
-
-            // 从 href 中提取 caseId
+            // 从 href 中提取 caseId（更准确）
             const detailLink = row.querySelector('a[href*="/detail/"]');
             let extractedCaseId = caseId;
             if (detailLink) {
@@ -397,183 +319,56 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
               }
             }
 
-            // 尝试从 data-title 或其他属性中提取更多信息
-            const waRemarkLink = row.querySelector('.open-wa-remark-modal');
-            const waRemarkContent = waRemarkLink?.getAttribute('data-title') || null;
-
-            // 获取所有 td 元素，用于提取更多字段
-            const cells = Array.from(row.querySelectorAll('td'));
-
-            // 提取 PRI 分数（从 badge 中）
-            let priScore: number | null = null;
-            const priBadge = row.querySelector('td .badge.bg-danger, td .badge.bg-warning, td .badge.bg-success');
-            if (priBadge) {
-              const priText = priBadge.textContent?.trim() || '';
-              const priNum = parseNumber(priText);
-              if (priNum > 0) {
-                priScore = priNum;
+            // 2. PTP 状态
+            let ptpStatus: string | null = null;
+            const ptpCell = cells[2] as any; // 第3列（索引2）
+            if (ptpCell) {
+              const ptpBadge = ptpCell.querySelector('.badge');
+              if (ptpBadge) {
+                const ptpText = ptpBadge.textContent?.trim() || '';
+                if (ptpText.includes('PTP') || ptpText.includes('NO PTP') || ptpText.includes('BP')) {
+                  ptpStatus = ptpText;
+                }
               }
             }
 
-            // 提取 PTP 状态
-            const ptpBadges = Array.from(row.querySelectorAll('td .badge'));
-            let ptpStatus: string | null = null;
-            ptpBadges.forEach((badge: any) => {
-              const text = badge.textContent?.trim() || '';
-              if (text.includes('PTP') || text.includes('NO PTP') || text.includes('BP')) {
-                ptpStatus = text;
-              }
-            });
-
-            // 提取 Borrower Type（从 badge 中查找包含 New/Existing 的）
-            let customerType: string | null = null;
-            ptpBadges.forEach((badge: any) => {
-              const text = badge.textContent?.trim() || '';
-              if (text.includes('New') || text.includes('Existing') || text.includes('No risk')) {
-                customerType = text;
-              }
-            });
-
-            // 提取 WA Intention
-            let loanTag: string | null = null;
-            ptpBadges.forEach((badge: any) => {
-              const text = badge.textContent?.trim() || '';
-              if (text.includes('WA') || text.includes('Willing') || text.includes('Unwilling') || text.includes('Delivered')) {
-                loanTag = text;
-              }
-            });
-
-            // 提取 Plan
-            const planEl = cells.find((cell: any) => {
-              const text = cell.textContent?.trim() || '';
-              return text.includes('Apps Notif') || text.includes('Plan');
-            }) as any;
-            const trigger = planEl?.textContent?.trim() || null;
-
-            // 提取 Assigned By（审核人）- 查找包含人名但非日期的单元格
-            let reviewerName: string | null = null;
-            cells.forEach((cell: any) => {
-              const text = cell.textContent?.trim() || '';
-              // 查找包含人名的单元格（排除金额、日期、数字等）
-              if (text && !text.includes('Rp.') && !text.match(/\d+\s+\w+\s+\d{4}/) && 
-                  !text.match(/^\d+$/) && text.length > 2 && text.length < 50 && 
-                  !text.includes('-') && !text.includes('Oct') && !text.includes('Nov')) {
-                // 可能是人名
-                if (!reviewerName && text !== '-' && text !== 'No') {
-                  reviewerName = text;
+            // 3. PRI 分数
+            let priScore: number | null = null;
+            const priCell = cells[3] as any; // 第4列（索引3）
+            if (priCell) {
+              const priBadge = priCell.querySelector('.badge.bg-danger');
+            if (priBadge) {
+              const priText = priBadge.textContent?.trim() || '';
+              const priNum = parseNumber(priText);
+                if (priNum >= 0) {
+                priScore = priNum;
                 }
               }
-            });
+            }
 
-            // 提取 Assigned At 和 Last Followed
-            let assignedAt: string | null = null;
-            let lastLogCreateTime: string | null = null;
-            cells.forEach((cell: any) => {
-              const text = cell.textContent?.trim() || '';
-              // 查找日期格式（如 "23 Oct 2025 12:09"）
-              if (text.match(/\d+\s+\w+\s+\d{4}\s+\d{2}:\d{2}/)) {
-                if (!assignedAt) {
-                  assignedAt = parseDate(text);
-                } else if (!lastLogCreateTime) {
-                  lastLogCreateTime = parseDate(text);
-                }
-              } else if (text === '-') {
-                // 空的日期
-                if (!lastLogCreateTime) {
-                  lastLogCreateTime = null;
-                }
-              }
-            });
-
-            // 提取其他平台贷款数量（OPL）
-            const oplEl = row.querySelector('.other-platform-active-loan-count');
-            const oplCount = parseNumber(oplEl?.textContent, 0);
-
-            // 提取 Occupation
-            const jobNameEl = row.querySelector('.jobName');
-            const occupation = jobNameEl?.textContent?.trim() || null;
-
-            // 提取 isExtendedOrder
+            // 4. Extended - 是否延期订单
             const isExtendedOrderEl = row.querySelector('.isExtendedOrder');
             const isExtendedOrderText = isExtendedOrderEl?.textContent?.trim() || '';
             const isExtendedOrder = isExtendedOrderText.toLowerCase().includes('yes');
 
-            // 提取 installmentSequence
+            // 5. Installment - 分期序号
+            const installmentEl = row.querySelector('.installment');
             const installmentSequence = parseNumber(installmentEl?.textContent, 0);
 
-            // 提取 WA Number
-            const waNumber = borrowerWaEl?.textContent?.trim() || null;
+            // 6. Borrower - 借款人姓名
+            const borrowerNameEl = row.querySelector('.borrowerName');
+            const fullName = borrowerNameEl?.textContent?.trim() || '';
 
-            // 提取 Email
-            const email = borrowerEmailEl?.textContent?.trim() || null;
+            // 7. Occupation - 职业
+            const jobNameEl = row.querySelector('.jobName');
+            const occupation = jobNameEl?.textContent?.trim() || null;
 
-            // 提取 Sensitivity（从 badge 中查找包含 "risk" 的）
-            let sensitivity: string | null = null;
-            ptpBadges.forEach((badge: any) => {
-              const text = badge.textContent?.trim() || '';
-              if (text.includes('risk') || text.includes('No risk')) {
-                sensitivity = text;
-              }
-            });
-
-            // 提取 WA Intention Level（更精确的提取）
-            let waIntentionLevel: string | null = null;
-            ptpBadges.forEach((badge: any) => {
-              const text = badge.textContent?.trim() || '';
-              if (text.includes('WA') || text.includes('Willing') || text.includes('Unwilling') || 
-                  text.includes('Delivered') || text.includes('Sent') || text.includes('Not Found')) {
-                waIntentionLevel = text;
-              }
-            });
-            if (!waIntentionLevel) {
-              waIntentionLevel = loanTag;
-            }
-
-            // 提取金额字段（按顺序）
-            // 表格中的金额顺序：Penalty, Current Due, Total Due, Repayment, Remaining, RWP
-            const allAmountTexts: string[] = [];
-            amountCells.forEach((cell: any) => {
-              const text = cell.textContent?.trim() || '';
-              const matches = text.match(/Rp\.\s*([\d.]+)/g);
-              if (matches) {
-                matches.forEach((match: string) => {
-                  allAmountTexts.push(match);
-                });
-              }
-            });
-
-            // 解析各个金额字段（根据位置推断）
-            let penaltyAmount = 0;
-            let currentDueAmount = 0;
-            let totalDueAmount = 0;
-            let repaymentAmount = 0;
-            let remainingAmount = 0;
-            let rwp = 0;
-
-            // 从表格结构看，金额字段的顺序是：Penalty, Current Due, Total Due, Repayment, Remaining, RWP
-            // 但我们需要更精确地识别每个字段
-            // 暂时按 amounts 数组的顺序分配（需要根据实际页面结构调整）
-            if (amounts.length >= 6) {
-              penaltyAmount = amounts[0] || 0;
-              currentDueAmount = amounts[1] || 0;
-              totalDueAmount = amounts[2] || 0;
-              repaymentAmount = amounts[3] || 0;
-              remainingAmount = amounts[4] || 0;
-              rwp = amounts[5] || 0;
-            } else if (amounts.length > 0) {
-              // 如果金额数量不足，按常见模式分配
-              // Total Due 通常是最大的
-              const sortedAmounts = [...amounts].sort((a, b) => b - a);
-              totalDueAmount = sortedAmounts[0] || 0;
-              if (sortedAmounts.length > 1) {
-                currentDueAmount = sortedAmounts[1] || 0;
-              }
-              if (sortedAmounts.length > 2) {
-                remainingAmount = sortedAmounts[2] || 0;
-              }
-            }
-
-            // customerId 通常等于 id，但可以从其他平台贷款数据中获取
+            // 8. OPL - 其他平台活跃贷款数量
+            const oplEl = row.querySelector('.other-platform-active-loan-count');
+            const oplCount = parseNumber(oplEl?.textContent, 0);
+            
+            // 从 OPL 链接的 onclick 中提取 customerId
+            let customerId = id;
             if (oplEl) {
               const onclick = oplEl.getAttribute('onclick');
               if (onclick) {
@@ -584,27 +379,231 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
               }
             }
 
+            // 9. Phone - 电话
+            const borrowerPhoneEl = row.querySelector('.borrowerPhone');
+            const mobile = borrowerPhoneEl?.textContent?.trim() || '';
+
+            // 10. WA - WhatsApp
+            const borrowerWaEl = row.querySelector('.borrowerWa');
+            const waNumber = borrowerWaEl?.textContent?.trim() || null;
+
+            // WA Remark Content
+            const waRemarkLink = row.querySelector('.open-wa-remark-modal');
+            const waRemarkContent = waRemarkLink?.getAttribute('data-title') || null;
+
+            // 11. Email - 邮箱
+            const borrowerEmailEl = row.querySelector('.borrowerEmail');
+            const email = borrowerEmailEl?.textContent?.trim() || null;
+
+            // 12. Product - 产品
+            const productEl = row.querySelector('.product');
+            const product = productEl?.textContent?.trim() || null;
+
+            // 13. DPD - 逾期天数
+            let overdueDay = 0;
+            const dpdCell = cells[13] as any; // 第14列（索引13）
+            if (dpdCell) {
+              const textDangerEl = dpdCell.querySelector('.text-danger');
+              if (textDangerEl) {
+                const text = textDangerEl.textContent?.trim() || '';
+                const num = parseInt(text, 10);
+                if (!isNaN(num) && num >= 0) {
+                  overdueDay = num;
+                }
+              }
+            }
+
+            // 14. Bucket - 催收等级
+            const collectionLevelEl = row.querySelector('.collectionLevel');
+            const collectionLevel = collectionLevelEl?.textContent?.trim() || null;
+
+            // 15-20. 金额字段：Penalty, Current Due, Total Due, Repayment, RWP, Remaining
+            // 按表格列顺序提取金额（索引15-20）
+            let penaltyAmount = 0;
+            let currentDueAmount = 0;
+            let totalDueAmount = 0;
+            let repaymentAmount = 0;
+            let rwp = 0;
+            let remainingAmount = 0;
+            
+            // 按表格列顺序解析金额字段
+            // 15. Penalty (索引15)
+            const penaltyCell = cells[15] as any;
+            if (penaltyCell && penaltyCell.textContent?.includes('Rp.')) {
+              const text = penaltyCell.textContent?.trim() || '';
+              const match = text.match(/Rp\.\s*([\d.]+)/);
+              if (match) {
+                const numStr = match[1].replace(/\./g, '');
+                penaltyAmount = parseFloat(numStr) || 0;
+              }
+            }
+            
+            // 16. Current Due (索引16)
+            const currentDueCell = cells[16] as any;
+            if (currentDueCell && currentDueCell.textContent?.includes('Rp.')) {
+              const text = currentDueCell.textContent?.trim() || '';
+              const match = text.match(/Rp\.\s*([\d.]+)/);
+              if (match) {
+                const numStr = match[1].replace(/\./g, '');
+                currentDueAmount = parseFloat(numStr) || 0;
+              }
+            }
+            
+            // 17. Total Due (索引17)
+            const totalDueCell = cells[17] as any;
+            if (totalDueCell && totalDueCell.textContent?.includes('Rp.')) {
+              const text = totalDueCell.textContent?.trim() || '';
+              const match = text.match(/Rp\.\s*([\d.]+)/);
+              if (match) {
+                const numStr = match[1].replace(/\./g, '');
+                totalDueAmount = parseFloat(numStr) || 0;
+              }
+            }
+            
+            // 18. Repayment (索引18)
+            const repaymentCell = cells[18] as any;
+            if (repaymentCell && repaymentCell.textContent?.includes('Rp.')) {
+              const text = repaymentCell.textContent?.trim() || '';
+              const match = text.match(/Rp\.\s*([\d.]+)/);
+              if (match) {
+                const numStr = match[1].replace(/\./g, '');
+                repaymentAmount = parseFloat(numStr) || 0;
+              }
+            }
+            
+            // 19. RWP (索引19)
+            const rwpCell = cells[19] as any;
+            if (rwpCell && rwpCell.textContent?.includes('Rp.')) {
+              const text = rwpCell.textContent?.trim() || '';
+              const match = text.match(/Rp\.\s*([\d.]+)/);
+              if (match) {
+                const numStr = match[1].replace(/\./g, '');
+                rwp = parseFloat(numStr) || 0;
+              }
+            }
+            
+            // 20. Remaining (索引20)
+            const remainingCell = cells[20] as any;
+            if (remainingCell && remainingCell.textContent?.includes('Rp.')) {
+              const text = remainingCell.textContent?.trim() || '';
+              const match = text.match(/Rp\.\s*([\d.]+)/);
+              if (match) {
+                const numStr = match[1].replace(/\./g, '');
+                remainingAmount = parseFloat(numStr) || 0;
+              }
+            }
+
+            // 计算 principleAmount（通常是最小的金额，可能是 Current Due 或 Remaining）
+            let principleAmount = 0;
+            if (currentDueAmount > 0) {
+              principleAmount = currentDueAmount;
+            } else if (remainingAmount > 0) {
+              principleAmount = remainingAmount;
+            } else if (totalDueAmount > 0) {
+              principleAmount = totalDueAmount;
+            }
+
+            // 21. Sensitivity - 敏感度
+            let sensitivity: string | null = null;
+            const sensitivityCell = cells[21] as any; // 第22列（索引21）
+            if (sensitivityCell) {
+              const sensitivityBadge = sensitivityCell.querySelector('.badge');
+              if (sensitivityBadge) {
+                const sensitivityText = sensitivityBadge.textContent?.trim() || '';
+                if (sensitivityText.includes('risk') || sensitivityText.includes('No risk')) {
+                  sensitivity = sensitivityText;
+                }
+              }
+            }
+
+            // 22. Borrower Type - 借款人类型
+            let customerType: string | null = null;
+            const borrowerTypeCell = cells[22] as any; // 第23列（索引22）
+            if (borrowerTypeCell) {
+              const borrowerTypeBadge = borrowerTypeCell.querySelector('.badge');
+              if (borrowerTypeBadge) {
+                const borrowerTypeText = borrowerTypeBadge.textContent?.trim() || '';
+                if (borrowerTypeText.includes('New') || borrowerTypeText.includes('Existing') || borrowerTypeText.includes('No risk')) {
+                  customerType = borrowerTypeText;
+                }
+              }
+            }
+
+            // 23. WA Intention - WA 意向
+            let waIntentionLevel: string | null = null;
+            const waIntentionCell = cells[23] as any; // 第24列（索引23）
+            if (waIntentionCell) {
+              const waIntentionBadge = waIntentionCell.querySelector('.badge');
+              if (waIntentionBadge) {
+                const waIntentionText = waIntentionBadge.textContent?.trim() || '';
+                if (waIntentionText.includes('WA') || waIntentionText.includes('Delivered')) {
+                  waIntentionLevel = waIntentionText;
+                }
+              }
+            }
+
+            // 24. Plan - 计划
+            let plan: string | null = null;
+            const planCell = cells[24] as any; // 第25列（索引24）
+            if (planCell) {
+              const planText = planCell.textContent?.trim() || '';
+              if (planText.includes('Apps Notif') || planText.includes('Plan')) {
+                plan = planText;
+              }
+            }
+
+            // 25. Assigned By - 分配人
+            let assignedBy: string | null = null;
+            const assignedByCell = cells[25] as any; // 第26列（索引25）
+            if (assignedByCell) {
+              const assignedByText = assignedByCell.textContent?.trim() || '';
+              // 排除日期格式和金额
+              if (assignedByText && !assignedByText.match(/\d+\s+\w+\s+\d{4}/) && !assignedByText.includes('Rp.')) {
+                assignedBy = assignedByText;
+              }
+            }
+
+            // 26. Assigned At - 分配时间
+            let assignedAt: string | null = null;
+            const assignedAtCell = cells[26] as any; // 第27列（索引26）
+            if (assignedAtCell) {
+              const assignedAtText = assignedAtCell.textContent?.trim() || '';
+              if (assignedAtText && assignedAtText !== '-') {
+                assignedAt = parseDate(assignedAtText);
+              }
+            }
+
+            // 27. Last Followed - 最后跟进时间
+            let lastFollowedUpDate: string | null = null;
+            const lastFollowedCell = cells[27] as any; // 第28列（索引27）
+            if (lastFollowedCell) {
+              const lastFollowedText = lastFollowedCell.textContent?.trim() || '';
+              if (lastFollowedText && lastFollowedText !== '-') {
+                lastFollowedUpDate = parseDate(lastFollowedText);
+              }
+            }
+
             // 构建 SingaCase 对象，尽可能填充所有字段
             const caseItem: any = {
               id: id,
               caseId: extractedCaseId || caseId,
               fullName: fullName,
               customerType: customerType,
-              product: productEl?.textContent?.trim() || null,
+              product: product,
               status: ptpStatus,
               mobile: mobile,
-              trigger: trigger,
+              trigger: plan,
               customerId: customerId,
               groupId: 0,
-              level: collectionLevelEl?.textContent?.trim() || null,
-              amount: totalDueAmount || amount,
+              level: collectionLevel,
+              amount: totalDueAmount || 0,
               principleAmount: principleAmount,
               distributedDay: 0,
               overdueDay: overdueDay,
               reviewerId: null,
-              reviewerName: reviewerName,
+              reviewerName: user.username,
               createTime: assignedAt || new Date().toISOString(),
-              lastLogCreateTime: lastLogCreateTime,
+              lastLogCreateTime: lastFollowedUpDate,
               customerTag: null,
               customerSysTag: occupation,
               teamLeaderName: null,
@@ -627,7 +626,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
               queue: null,
               smsEventStatus: null,
               latestSmsSendSuccessTime: null,
-              loanTag: loanTag,
+              loanTag: waIntentionLevel,
               vipLevel: null,
               postLoanPreReminderLevel: null,
               overdueInstitutionLevel: null,
@@ -649,7 +648,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
               waNumber: waNumber,
               email: email,
               dpd: overdueDay,
-              collectionLevel: collectionLevelEl?.textContent?.trim() || null,
+              collectionLevel: collectionLevel,
               penaltyAmount: penaltyAmount || undefined,
               currentDueAmount: currentDueAmount || undefined,
               repaymentAmount: repaymentAmount || undefined,
@@ -657,10 +656,10 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
               remainingAmount: remainingAmount || undefined,
               sensitivity: sensitivity,
               waIntentionLevel: waIntentionLevel,
-              plan: trigger,
-              assignedBy: reviewerName,
+              plan: plan,
+              assignedBy: assignedBy,
               assignedAt: assignedAt,
-              lastFollowedUpDate: lastLogCreateTime,
+              lastFollowedUpDate: lastFollowedUpDate,
             };
 
             result.push(caseItem);

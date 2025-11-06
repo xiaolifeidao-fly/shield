@@ -40,7 +40,7 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
         style={{ width: 180 }}
       >
         <Select.Option value="adapundi">Adapundi</Select.Option>
-        <Select.Option value="singa">Singa</Select.Option>
+        <Select.Option value="SINGA">SIGINT</Select.Option>
       </Select>
       <Input
         placeholder="Search by username or remark"
