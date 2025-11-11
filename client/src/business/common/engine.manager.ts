@@ -11,7 +11,7 @@ export async function getEngineInstance(resourceId: string): Promise<EngineInsta
     if (engineInstances.has(resourceId)) {
         return engineInstances.get(resourceId)!;
     }
-    const engine = new EngineInstance(resourceId);
+    const engine = new EngineInstance(resourceId, false);
     engineInstances.set(resourceId, engine);
     return engine;
 }
