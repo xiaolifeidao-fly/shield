@@ -1,6 +1,6 @@
 import { getGlobal, setGlobal } from '@utils/store/electron';
 import { SyncStats, UserInfo, BusinessType } from '@eleapi/user/user.api';
-import { Case, CaseDetail, LoanPlan, CustomerInfo } from './entities';
+import { Case, CaseDetail, LoanPlan, CustomerInfo, CasePageResponse } from './entities';
 import { BaseBusinessApi } from './base.api';
 import log from 'electron-log';
 
@@ -251,7 +251,9 @@ export abstract class BaseCaseSyncService {
       }
       // log.info(`syncSingleCase caseItem: ${JSON.stringify(caseItem)}`);
       // 获取案例详情
+      log.info(`syncSingleCase start getCaseDetail caseItem`);
       const caseDetail = await this.businessApi.getCaseDetail(caseItem.product, caseItem);
+      log.info(`syncSingleCase end getCaseDetail caseItem`);
       // 获取还款计划
       let loanPlan: LoanPlan[] = [];
       try {
@@ -357,6 +359,7 @@ export abstract class BaseCaseSyncService {
   ): Promise<boolean> {
     for (const caseItem of records) {
       if (getStopFlag(username)) {
+        log.info(`syncPageCases stop flag is true, return true`);
         return true;
       }
       stats.totalCount++;
@@ -422,14 +425,9 @@ export abstract class BaseCaseSyncService {
         
         const startTime = Date.now();
         log.info("start sync page: " + pageNum);
-        const pageResponse = await this.businessApi.getCasePage({
-          pageNum,
-          pageSize,
-          ...params,
-        });
+        const pageResponse = await this.getCasePage(pageNum, pageSize, params);
         
-        log.info(`pageResponse: ${JSON.stringify(pageResponse.total)} total pages: ${pageResponse.pages} cost: ${Math.round((Date.now() - startTime) / 1000)}s`);
-        
+        log.info(`pageResponse: ${JSON.stringify(pageResponse.total)} total records: ${pageResponse.records.length} cost: ${Math.round((Date.now() - startTime) / 1000)}s`);
         if (!pageResponse.records || pageResponse.records.length === 0) {
           break;
         }
@@ -479,6 +477,24 @@ export abstract class BaseCaseSyncService {
       saveUserSyncStats(username, stats);
       throw error;
     }
+  }
+
+  async getCasePage(pageNum: number, pageSize: number, params: any){
+    let retryNum = 3;
+    while(retryNum > 0){
+      try{
+        const pageResponse = await this.businessApi.getCasePage({
+          pageNum,
+          pageSize,
+          ...params,
+        });
+        return pageResponse;
+      } catch (error) {
+          log.error(`getCasePage error:`, error);
+          retryNum--;
+      }
+    }
+    throw new Error(`getCasePage failed after ${retryNum} retries`);
   }
 
   /**

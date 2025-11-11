@@ -71,11 +71,11 @@ export async function login(userInfo: UserInfo, oriUrl : string): Promise<LoginR
     const currentUrl = page.url();
     log.info(`Singa 登录后当前URL: ${currentUrl}`);
 
-    if (currentUrl.includes('/my-dashboard') || currentUrl.includes(oriUrl) || currentUrl.includes('my-dashboard')) {
+    if (!currentUrl.includes('col.singa.id/login')) {
       log.info(`Singa 登录成功: ${username}`);
       return {
-        success: false,
-        message: '登录失败: 用户名或密码错误，或需要验证码'
+        success: true,
+        message: '登录成功'
       };
     } else {
       log.warn(`Singa 登录失败: 未知错误，当前URL: ${currentUrl}`);

@@ -136,6 +136,7 @@ export interface CaseDetail {
   backupMobile: string;
   createTime: string;
   whatsUpNum : string | null;
+  loanAmount : number | null;
 }
 
 /**
@@ -204,6 +205,36 @@ export interface CustomerInfo {
  * 还款计划接口
  */
 export interface LoanPlan {
+  id: number;
+  loanType: string;
+  status: string;
+  loanSubType: string;
+  amount: number;
+  interestRate: number;
+  duration: string;
+  period: number;
+  periodsNumber: number;
+  periodUnit: string;
+  dueAmount: number | null;
+  minDueDate: string | null;
+  overdueDays: number;
+  gracePeriodRate: number;
+  collectionLevel: string | null;
+  principalAmount: number;
+  interestAmount: number;
+  defaultAmount: number;
+  vatAmount: number;
+  shouldRepaymentAmount: number;
+  creditQuality: string;
+  platform: string;
+  rolloverType: string | null;
+  esignFlag: boolean;
+}
+
+/**
+ * 贷款详情接口
+ */
+export interface LoanDetail {
   id: number;
   loanType: string;
   status: string;

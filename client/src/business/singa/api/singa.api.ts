@@ -1,6 +1,6 @@
 import { AxiosInstance } from 'axios';
 import { BaseBusinessApi } from '../../common/base.api';
-import { CasePageParams, CasePageResponse, CaseDetail, LoanPlan, CustomerInfo, Case } from '../../common/entities';
+import { CasePageParams, CasePageResponse, CaseDetail, LoanPlan, CustomerInfo, Case, LoanDetail } from '../../common/entities';
 import { UserInfo, BusinessType } from '@eleapi/user/user.api';
 import { getCurrentUser, setCurrentUser, writeCaseInstance } from '../../adapundi/api/adapundi.axios';
 import { EngineInstance } from '@src/engine/engine.instance';
@@ -127,7 +127,163 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
     return Promise.resolve(customerInfo);
   }
 
-  getCaseDetail(product: string, caseItem : SingaCase): Promise<CaseDetail> {
+  async getLoanDetail(caseId: string): Promise<LoanDetail | null> {
+    if (!caseId) {
+      log.warn('Singa 获取贷款详情失败: caseId 为空');
+      return null;
+    }
+
+    const user = this.getCurrentUser();
+    if (!user || !user.username) {
+      log.error('Singa 获取贷款详情失败: 未找到当前用户信息');
+      return null;
+    }
+
+    const resourceId = `${user.username}_${user.businessType || 'singa'}`;
+    const detailUrl = `https://col.singa.id/loan-collection/detail/${caseId}`;
+    const loginUrl = 'https://col.singa.id/login';
+
+    try {
+      let page = await getPage(resourceId, detailUrl) as unknown as Page;
+      if (!page) {
+        throw new Error('无法初始化详情页面');
+      }
+
+      const currentUrl = page.url();
+      if (currentUrl.includes('/login') || currentUrl === loginUrl) {
+        const loginResult = await singaLogin(user, detailUrl);
+        if (!loginResult.success) {
+          log.error(`Singa 登录失败，无法获取贷款详情: ${loginResult.message || '未知错误'}`);
+          return null;
+        }
+
+        page = await getPage(resourceId, detailUrl) as unknown as Page;
+        if (!page) {
+          throw new Error('登录后无法初始化详情页面');
+        }
+      }
+
+      await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {
+        log.warn(`Singa 贷款详情页面加载 domcontentloaded 超时: ${caseId}`);
+      });
+
+      await page.waitForSelector('#firstTable tbody tr', { timeout: 15000 }).catch(() => {
+        log.warn(`Singa 贷款详情页面未找到订单表格: ${caseId}`);
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const detail = await page.evaluate((): any => {
+        const doc = (globalThis as any).document as any;
+        if (!doc) {
+          return null;
+        }
+
+        const table = doc.querySelector('#firstTable tbody');
+        if (!table) {
+          return null;
+        }
+
+        const row = table.querySelector('tr') as any;
+        if (!row) {
+          return null;
+        }
+
+        const cells = Array.from(row.querySelectorAll('td')) as any[];
+        if (cells.length < 6) {
+          return null;
+        }
+
+        const getCellText = (index: number): string => {
+          const cell = cells[index] as any;
+          if (!cell) {
+            return '';
+          }
+          const text = cell.textContent ?? '';
+          return String(text).replace(/\s+/g, ' ').trim();
+        };
+
+        const parseAmount = (text: string): number => {
+          if (!text) {
+            return 0;
+          }
+          const cleaned = text
+            .replace(/Rp\./gi, '')
+            .replace(/\s+/g, '')
+            .replace(/\./g, '')
+            .replace(/,/g, '');
+          const num = parseFloat(cleaned);
+          return Number.isNaN(num) ? 0 : num;
+        };
+
+        const parseDate = (text: string): string | null => {
+          if (!text || text === '-' || text === '--') {
+            return null;
+          }
+          const trimmed = text.replace(/\s+/g, ' ').trim();
+          const date = new Date(trimmed);
+          if (Number.isNaN(date.getTime())) {
+            return null;
+          }
+          return date.toISOString();
+        };
+
+        const productName = getCellText(0);
+        const bankName = getCellText(1);
+        const contractAmount = parseAmount(getCellText(2));
+        const applyAt = parseDate(getCellText(3));
+        const disbursementDate = parseDate(getCellText(4));
+        const disbursementAmount = parseAmount(getCellText(5));
+
+        return {
+          productName,
+          bankName,
+          contractAmount,
+          applyAt,
+          disbursementDate,
+          disbursementAmount,
+        };
+      });
+
+      if (!detail) {
+        log.warn(`Singa 贷款详情解析失败: ${caseId}`);
+        return null;
+      }
+
+      const loanDetail: LoanDetail = {
+        id: 0,
+        loanType: detail.productName || '',
+        status: '',
+        loanSubType: detail.bankName || '',
+        amount: detail.contractAmount || 0,
+        interestRate: 0,
+        duration: '',
+        period: 0,
+        periodsNumber: 0,
+        periodUnit: '',
+        dueAmount: 0,
+        minDueDate: detail.disbursementDate ?? null,
+        overdueDays: 0,
+        gracePeriodRate: 0,
+        collectionLevel: null,
+        principalAmount: detail.disbursementAmount || 0,
+        interestAmount: 0,
+        defaultAmount: 0,
+        vatAmount: 0,
+        shouldRepaymentAmount: detail.disbursementAmount ?? 0,
+        creditQuality: '',
+        platform: '',
+        rolloverType: null,
+        esignFlag: false,
+      };
+
+      return loanDetail;
+    } catch (error) {
+      log.error(`Singa 获取贷款详情异常 caseId=${caseId}`, error);
+      return null;
+    }
+  }
+
+  async getCaseDetail(product: string, caseItem : SingaCase): Promise<CaseDetail> {
     // 将 SingaCase 转换为 CaseDetail
     const caseDetail: CaseDetail = {
       id: caseItem.id,
@@ -176,8 +332,23 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
       backupMobile: '',
       createTime: caseItem.createTime || new Date().toISOString(),
       whatsUpNum: caseItem.waNumber || null,
+      loanAmount: null,
     };
-    return Promise.resolve(caseDetail);
+    try {
+      const loanDetail = await this.getLoanDetail(caseDetail.caseId);
+      if (loanDetail && loanDetail.amount > 0) {
+        caseDetail.loanAmount = loanDetail.amount;
+        if (!caseDetail.principleAmount) {
+          caseDetail.principleAmount = loanDetail.principalAmount;
+        }
+        if (!caseDetail.amount) {
+          caseDetail.loanAmount = loanDetail.amount;
+        }
+      }
+    } catch (error) {
+      log.warn(`Singa 案件详情补充贷款数据失败 caseId=${caseDetail.caseId}`, error);
+    }
+    return caseDetail;
   } 
 
   getAxiosInstance(): AxiosInstance | null {
@@ -220,7 +391,6 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
     // resourceId = username + businessType
     const resourceId = `${user.username}_${user.businessType || 'singa'}`;
-    const engine = new EngineInstance(resourceId, true);
 
     let page;
     try {
@@ -252,22 +422,15 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
       await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
         log.warn('页面加载超时');
       });
-
+      const username = user.username;
       // 解析表格数据
       // 注意：page.evaluate 中的代码在浏览器环境中执行
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const cases: any = await page.evaluate(() => {
+      const cases: any = await page.evaluate((username : string) => {
         // @ts-expect-error - document 在浏览器环境中存在
         const rows = Array.from(document.querySelectorAll('tbody tr[class^="assign-"]'));
         const result: any[] = [];
 
-        // 辅助函数：解析金额字符串（如 "Rp. 1.084.424"）
-        const parseAmount = (text: string | null | undefined): number => {
-          if (!text) return 0;
-          const cleaned = text.replace(/Rp\./gi, '').replace(/\s+/g, '').replace(/\./g, '');
-          const num = parseFloat(cleaned);
-          return isNaN(num) ? 0 : num;
-        };
 
         // 辅助函数：解析数字
         const parseNumber = (text: string | null | undefined, defaultValue: number = 0): number => {
@@ -289,16 +452,23 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
           }
           return null;
         };
-
-        rows.forEach((row: any) => {
+        // DOM元素无法被JSON序列化,改为记录有用信息
+        console.log('找到的行数:', rows.length);
+        console.log('行的class列表:', rows.map((r: any) => r.className));
+        
+        rows.forEach((row: any, index: number) => {
           try {
             // 从 class 中提取 ID（如 "assign-60183905"）
             const classList = row.className;
             const idMatch = classList.match(/assign-(\d+)/);
-            if (!idMatch) return;
+            if (!idMatch) {
+              return;
+            }
 
             const id = parseInt(idMatch[1], 10);
-            if (isNaN(id)) return;
+            if (isNaN(id)) {
+              return;
+            }
 
             // 获取所有 td 元素，按表格列顺序解析
             const cells = Array.from(row.querySelectorAll('td'));
@@ -318,6 +488,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
                 extractedCaseId = match[1];
               }
             }
+            
 
             // 2. PTP 状态
             let ptpStatus: string | null = null;
@@ -601,7 +772,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
               distributedDay: 0,
               overdueDay: overdueDay,
               reviewerId: null,
-              reviewerName: user.username,
+              reviewerName: username,
               createTime: assignedAt || new Date().toISOString(),
               lastLogCreateTime: lastFollowedUpDate,
               customerTag: null,
@@ -662,15 +833,20 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
               lastFollowedUpDate: lastFollowedUpDate,
             };
 
+            console.log(`第 ${index} 行: ✓ 成功解析, CaseID=${extractedCaseId}`, username);
             result.push(caseItem);
           } catch (error) {
-            console.error('解析行数据错误:', error);
+            console.error(`第 ${index} 行: ✗ 解析失败`, error);
+            // 打印更详细的错误信息
+            if (error instanceof Error) {
+              console.error(`  错误消息: ${error.message}`);
+              console.error(`  错误堆栈: ${error.stack}`);
+            }
           }
         });
-
         return result;
-      });
-
+      }, username);
+      log.info(`cases: ${JSON.stringify(cases)}`);
       // 从页面提取分页信息
       const paginationInfo = await page.evaluate(() => {
         // @ts-expect-error - document 在浏览器环境中存在

@@ -64,6 +64,7 @@
 | tadpoleAmount | string | “蝌蚪”金额（业务自定义维度） |
 | riskScoreAndLevel | string \| null | 风险分与级别描述 |
 | amount | number | 应还总额 |
+| loanAmount | number | 放款金额|
 | principleAmount | number | 本金 |
 | interestAmount | number | 利息 |
 | punishmentAmount | number | 违约金 |
