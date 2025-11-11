@@ -427,8 +427,8 @@ export abstract class BaseCaseSyncService {
         log.info("start sync page: " + pageNum);
         const pageResponse = await this.getCasePage(pageNum, pageSize, params);
         
-        log.info(`pageResponse: ${JSON.stringify(pageResponse.total)} total records: ${pageResponse.records.length} cost: ${Math.round((Date.now() - startTime) / 1000)}s`);
-        if (!pageResponse.records || pageResponse.records.length === 0) {
+        log.info(`pageResponse: ${JSON.stringify(pageResponse.total)} total records : ${pageResponse?.records?.length} cost: ${Math.round((Date.now() - startTime) / 1000)}s`);
+        if (!pageResponse?.records || pageResponse?.records?.length === 0) {
           break;
         }
 
