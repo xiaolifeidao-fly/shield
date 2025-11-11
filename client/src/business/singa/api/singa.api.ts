@@ -453,8 +453,6 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
           return null;
         };
         // DOM元素无法被JSON序列化,改为记录有用信息
-        log.info('找到的行数:', rows.length);
-        log.info('行的class列表:', rows.map((r: any) => r.className));
         
         rows.forEach((row: any, index: number) => {
           try {
