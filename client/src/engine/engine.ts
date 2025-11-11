@@ -179,7 +179,7 @@ export abstract class DoorEngine<T = any> {
         '--disable-features=VizDisplayCompositor'
     ]
 
-    constructor(resourceId : string, headless: boolean = true, chromePath: string = "", browserArgs : string[]|undefined = undefined){
+    constructor(resourceId : string, headless: boolean = false, chromePath: string = "", browserArgs : string[]|undefined = undefined){
         this.resourceId = resourceId;
         this.usePersistentContext = this.getUsePersistentContext();
         if(chromePath){
