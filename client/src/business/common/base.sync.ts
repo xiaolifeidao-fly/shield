@@ -5,10 +5,12 @@ import { BaseBusinessApi } from './base.api';
 import log from 'electron-log';
 
 /**
- * 同步缓存数据结构
+ * 同步缓存数据结构（按 businessType 分类）
  */
 interface SyncCache {
-  [caseId: string]: string; // caseId -> 最后同步日期 (YYYY-MM-DD)
+  [businessType: string]: {
+    [caseId: string]: string; // caseId -> 最后同步日期 (YYYY-MM-DD)
+  };
 }
 
 /**
@@ -38,18 +40,22 @@ function getTodayString(): string {
 /**
  * 检查某个 caseId 今天是否已经同步过
  */
-function shouldSync(cache: SyncCache, caseId: string): boolean {
+function shouldSync(cache: SyncCache, caseId: string, businessType: BusinessType): boolean {
   const today = getTodayString();
-  const lastSyncDate = cache[caseId];
+  const businessCache = cache[businessType] || {};
+  const lastSyncDate = businessCache[caseId];
   return !lastSyncDate || lastSyncDate !== today;
 }
 
 /**
  * 更新缓存：记录某个 caseId 今天已同步
  */
-function updateCache(cache: SyncCache, caseId: string): void {
+function updateCache(cache: SyncCache, caseId: string, businessType: BusinessType): void {
   const today = getTodayString();
-  cache[caseId] = today;
+  if (!cache[businessType]) {
+    cache[businessType] = {};
+  }
+  cache[businessType][caseId] = today;
 }
 
 /**
@@ -67,6 +73,34 @@ function getUserSyncCache(username: string): SyncCache {
 function saveUserSyncCache(username: string, cache: SyncCache): void {
   const cacheKey = `sync_cache_${username}`;
   setGlobal(cacheKey, cache);
+}
+
+/**
+ * 清理指定 businessType 的所有用户的缓存
+ */
+export function clearBusinessTypeCache(businessType: BusinessType): void {
+  const USER_LIST_KEY = "userList";
+  const userList = getGlobal(USER_LIST_KEY);
+  
+  if (!userList || !Array.isArray(userList)) {
+    log.info(`[clearBusinessTypeCache] No user list found`);
+    return;
+  }
+  
+  // 过滤出该 businessType 的所有用户
+  const businessUsers = userList.filter((u: UserInfo) => u.businessType === businessType);
+  
+  log.info(`[clearBusinessTypeCache] Clearing cache for ${businessUsers.length} users of businessType: ${businessType}`);
+  
+  // 清理每个用户的该 businessType 的缓存
+  for (const user of businessUsers) {
+    const cache = getUserSyncCache(user.username);
+    if (cache[businessType]) {
+      delete cache[businessType];
+      saveUserSyncCache(user.username, cache);
+      log.info(`[clearBusinessTypeCache] Cleared cache for user: ${user.username}, businessType: ${businessType}`);
+    }
+  }
 }
 
 /**
@@ -238,7 +272,17 @@ export abstract class BaseCaseSyncService {
     stats: SyncStats,
     enableDeduplication: boolean = true
   ): Promise<boolean> {
-    if (enableDeduplication && !shouldSync(cache, caseItem.caseId)) {
+    // 获取用户的 businessType
+    const userInfo = getUserInfo(username);
+    const businessType = userInfo?.businessType;
+    
+    if (!businessType) {
+      log.error(`Failed to get businessType for user ${username}`);
+      stats.failCount++;
+      return false;
+    }
+
+    if (enableDeduplication && !shouldSync(cache, caseItem.caseId, businessType)) {
       stats.skipCount++;
       return false;
     }
@@ -273,15 +317,12 @@ export abstract class BaseCaseSyncService {
         log.warn(`Failed to get customer info for customer ${caseDetail.customerId}:`, error);
         throw new Error(`Failed to get customer info for customer ${caseDetail.customerId}`);
       }
-      // 获取用户的 businessType
-      const userInfo = getUserInfo(username);
-      const businessType = userInfo?.businessType;
 
       // 写入案例数据
       await this.writeCase(caseDetail, loanPlan, customerInfo, businessType);
       // 如果启用去重，更新缓存
       if (enableDeduplication) {
-        updateCache(cache, caseItem.caseId);
+        updateCache(cache, caseItem.caseId, businessType);
         saveUserSyncCache(username, cache);
       }
 

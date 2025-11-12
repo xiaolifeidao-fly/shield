@@ -295,7 +295,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
       customerId: caseItem.customerId,
       overdueDay: caseItem.overdueDay || caseItem.dpd || 0,
       reviewerId: caseItem.reviewerId || null,
-      reviewerName: caseItem.assignedBy || null,
+      reviewerName: caseItem.reviewerName || null,
       customerTag: caseItem.customerTag || null,
       riskGrade: caseItem.riskGrade || (caseItem.priScore !== null && caseItem.priScore !== undefined ? String(caseItem.priScore) : null),
       clearedNumber: caseItem.clearedNumber || 0,

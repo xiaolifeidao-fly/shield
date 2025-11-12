@@ -2,6 +2,7 @@ import { BusinessType } from "@eleapi/user/user.api";
 import { SyncTimeConfig } from "@eleapi/config/system.api";
 import { SystemImpl } from "@src/impl/config/system.impl";
 import { UserImpl } from "@src/impl/user/user.impl";
+import { clearBusinessTypeCache } from "@src/business/common/base.sync";
 import log from 'electron-log';
 
 /**
@@ -153,6 +154,10 @@ class ScheduledTaskManager {
         log.info(`[ScheduledTaskManager] Executing scheduled task for business type: ${businessType}`);
         
         try {
+            // 清理该 businessType 的缓存数据
+            log.info(`[ScheduledTaskManager] Clearing cache for business type: ${businessType}`);
+            clearBusinessTypeCache(businessType);
+            
             // 获取该业务类型下的所有用户
             const allUsers = await this.userImpl.getUserInfoList();
             const businessUsers = allUsers.filter(user => user.businessType === businessType);
