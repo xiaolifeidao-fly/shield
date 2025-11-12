@@ -473,6 +473,7 @@ export abstract class BaseCaseSyncService {
         
         
         log.info(`pageResponse: ${JSON.stringify(pageResponse.total)} total records : ${pageResponse?.records?.length} cost: ${Math.round((Date.now() - startTime) / 1000)}s`);
+        stats.totalCount = pageResponse.total;
         saveUserSyncStats(username, stats);
         if (!pageResponse?.records || pageResponse?.records?.length === 0) {
           break;

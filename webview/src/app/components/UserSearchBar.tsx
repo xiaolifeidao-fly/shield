@@ -7,11 +7,11 @@ import { BusinessType } from './UserManagement.types';
 
 interface UserSearchBarProps {
   searchText: string;
-  selectedBusinessType: BusinessType | undefined;
+  selectedBusinessType: BusinessType;
   enableDeduplication: boolean;
   enableResume: boolean;
   onSearchChange: (value: string) => void;
-  onBusinessTypeChange: (value: BusinessType | undefined) => void;
+  onBusinessTypeChange: (value: BusinessType) => void;
   onDeduplicationChange: (value: boolean) => void;
   onResumeChange: (value: boolean) => void;
   onAddClick: () => void;
@@ -33,14 +33,13 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
   return (
     <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
       <Select
-        placeholder="Filter by business type"
+        placeholder="Select business type"
         value={selectedBusinessType}
         onChange={onBusinessTypeChange}
-        allowClear
         style={{ width: 180 }}
       >
         <Select.Option value="adapundi">Adapundi</Select.Option>
-        <Select.Option value="SINGA">SIGINT</Select.Option>
+        <Select.Option value="SINGA">SINGA</Select.Option>
       </Select>
       <Input
         placeholder="Search by username or remark"

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Form, message } from 'antd';
 import { UserInfo, BusinessType } from './UserManagement.types';
 import UserSearchBar from './UserSearchBar';
+import UserStats from './UserStats';
 import UserTable from './UserTable';
 import UserModal from './UserModal';
 
@@ -14,7 +15,7 @@ const UserManagement: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserInfo | null>(null);
   const [searchText, setSearchText] = useState<string>('');
-  const [selectedBusinessType, setSelectedBusinessType] = useState<BusinessType | undefined>(undefined);
+  const [selectedBusinessType, setSelectedBusinessType] = useState<BusinessType>('adapundi'); // 默认选择第一个
   const [enableDeduplication, setEnableDeduplication] = useState<boolean>(true); // 默认选中
   const [enableResume, setEnableResume] = useState<boolean>(false); // 默认不选中
   const [runningUsers, setRunningUsers] = useState<Set<string>>(new Set());
@@ -173,6 +174,10 @@ const UserManagement: React.FC = () => {
         onResumeChange={setEnableResume}
         onAddClick={() => openModal()}
         onRefresh={loadUsers}
+      />
+      <UserStats
+        users={filteredUsers}
+        businessType={selectedBusinessType}
       />
       <UserTable
         users={filteredUsers}
