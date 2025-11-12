@@ -270,7 +270,7 @@ export abstract class BaseCaseSyncService {
     caseItem: Case,
     cache: SyncCache,
     stats: SyncStats,
-    enableDeduplication: boolean = true
+    enableDeduplication: boolean = true,
   ): Promise<boolean> {
     // 获取用户的 businessType
     const userInfo = getUserInfo(username);
@@ -284,6 +284,7 @@ export abstract class BaseCaseSyncService {
 
     if (enableDeduplication && !shouldSync(cache, caseItem.caseId, businessType)) {
       stats.skipCount++;
+      saveUserSyncStats(username, stats);
       return false;
     }
 
@@ -393,17 +394,22 @@ export abstract class BaseCaseSyncService {
    */
   protected async syncPageCases(
     username: string,
+    totalNum: number,
     records: Case[],
     cache: SyncCache,
     stats: SyncStats,
     enableDeduplication: boolean = true
   ): Promise<boolean> {
+    stats.totalCount = totalNum;
     for (const caseItem of records) {
       if (getStopFlag(username)) {
         log.info(`syncPageCases stop flag is true, return true`);
         return true;
       }
-      stats.totalCount++;
+      stats.incrementNum = (stats.incrementNum || 0) + 1;
+      if(stats.incrementNum >= totalNum) {
+        stats.totalCount = stats.incrementNum;
+      }
       await this.syncSingleCase(username, caseItem, cache, stats, enableDeduplication);
     }
     return false;
@@ -429,6 +435,7 @@ export abstract class BaseCaseSyncService {
       successCount: 0,
       skipCount: 0,
       failCount: 0,
+      incrementNum : 0,
       running: true,
       startTime: new Date().toISOString(),
       duration: 0,
@@ -451,8 +458,6 @@ export abstract class BaseCaseSyncService {
     }
     
     const pageSize = 20;
-    let apiTotalCount = 0; // 记录API返回的总数量
-
     try {
       log.info(`saveUserSyncStats: ${JSON.stringify(stats)}`);
       saveUserSyncStats(username, stats);
@@ -462,9 +467,6 @@ export abstract class BaseCaseSyncService {
           stats.running = false;
           stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
           // 比较并使用较大的总数
-          if (apiTotalCount > 0) {
-            stats.totalCount = Math.max(stats.totalCount, apiTotalCount);
-          }
           saveUserSyncStats(username, stats);
           break;
         }
@@ -473,27 +475,21 @@ export abstract class BaseCaseSyncService {
         log.info("start sync page: " + pageNum);
         const pageResponse = await this.getCasePage(pageNum, pageSize, params);
         
-        // 记录API返回的总数量（取第一次或最大的值）
-        if (pageResponse?.total) {
-          apiTotalCount = Math.max(apiTotalCount, pageResponse.total);
-        }
         
         log.info(`pageResponse: ${JSON.stringify(pageResponse.total)} total records : ${pageResponse?.records?.length} cost: ${Math.round((Date.now() - startTime) / 1000)}s`);
+        saveUserSyncStats(username, stats);
         if (!pageResponse?.records || pageResponse?.records?.length === 0) {
           break;
         }
 
-        const stopped = await this.syncPageCases(username, pageResponse.records, cache, stats, enableDeduplication);
+
+        const stopped = await this.syncPageCases(username, pageResponse.total, pageResponse.records, cache, stats, enableDeduplication);
         
         stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
         saveUserSyncStats(username, stats);
 
         if (stopped) {
           stats.running = false;
-          // 比较并使用较大的总数
-          if (apiTotalCount > 0) {
-            stats.totalCount = Math.max(stats.totalCount, apiTotalCount);
-          }
           saveUserSyncStats(username, stats);
           break;
         }
@@ -518,12 +514,6 @@ export abstract class BaseCaseSyncService {
       stats.running = false;
       stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
       stats.lastSyncTime = new Date().toISOString();
-      // 比较并使用较大的总数
-      if (apiTotalCount > 0) {
-        const actualProcessed = stats.totalCount;
-        stats.totalCount = Math.max(stats.totalCount, apiTotalCount);
-        log.info(`Final totalCount: ${stats.totalCount} (actual processed: ${actualProcessed}, API total: ${apiTotalCount})`);
-      }
       saveUserSyncStats(username, stats);
       
       if (enableResume) {
@@ -536,11 +526,10 @@ export abstract class BaseCaseSyncService {
       stats.running = false;
       stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
       // 即使出错也要比较并使用较大的总数
-      if (apiTotalCount > 0) {
-        stats.totalCount = Math.max(stats.totalCount, apiTotalCount);
-      }
       saveUserSyncStats(username, stats);
       throw error;
+    }finally{
+      saveUserSyncStats(username, stats);
     }
   }
 

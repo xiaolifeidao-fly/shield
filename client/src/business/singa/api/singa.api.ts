@@ -844,7 +844,6 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
         });
         return result;
       }, username);
-      log.info(`cases: ${JSON.stringify(cases)}`);
       // 从页面提取分页信息
       const paginationInfo = await page.evaluate(() => {
         // @ts-expect-error - document 在浏览器环境中存在

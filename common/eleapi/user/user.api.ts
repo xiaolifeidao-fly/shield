@@ -14,6 +14,7 @@ export interface SyncStats {
   running?: boolean; // 运行状态
   startTime?: string; // 运行开始时间
   duration?: number; // 运行时长（秒）
+  incrementNum?: number; // 增量数量
 }
 
 export interface UserInfo {
