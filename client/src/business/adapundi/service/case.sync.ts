@@ -27,12 +27,15 @@ export async function syncUserCases(
   if (!businessFactoryRegistry.hasBusinessType(userInfo.businessType)) {
     throw new Error(`业务类型 ${userInfo.businessType} 未注册`);
   }
-
   // 根据 businessType 获取对应的同步服务
   const syncService = businessFactoryRegistry.getSyncService(userInfo.businessType);
   
-  // 调用同步服务的 syncUserCases 方法
-  return await syncService.syncUserCases(userInfo, params);
+  try{
+    // 调用同步服务的 syncUserCases 方法
+    return await syncService.syncUserCases(userInfo, params);
+  }finally{
+    syncService.release(userInfo.businessType, userInfo.username);
+  }
 }
 
 /**

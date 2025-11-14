@@ -247,6 +247,7 @@ function hasMorePages(
  * 提供通用的同步逻辑，子类可以重写特定方法以定制行为
  */
 export abstract class BaseCaseSyncService {
+
   protected businessApi: BaseBusinessApi;
 
   constructor(businessApi: BaseBusinessApi) {
@@ -367,6 +368,8 @@ export abstract class BaseCaseSyncService {
         }
       }
   }
+
+  abstract release(businessType: BusinessType, username: string): Promise<void>;
 
   /**
    * 写入案例数据（子类可以重写此方法以定制行为）

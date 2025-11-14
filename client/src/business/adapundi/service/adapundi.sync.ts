@@ -1,7 +1,7 @@
 import { BaseCaseSyncService } from '../../common/base.sync';
 import { BaseBusinessApi } from '../../common/base.api';
 import { Case, CaseDetail } from '../../common/entities';
-import { SyncStats } from '@eleapi/user/user.api';
+import { BusinessType, SyncStats } from '@eleapi/user/user.api';
 import { decryptPhone, AuditDataType } from '../api/phone.api';
 import log from 'electron-log';
 
@@ -14,9 +14,14 @@ interface SyncCache {
  * 继承基础同步服务，可以重写特定方法以定制行为
  */
 export class AdapundiCaseSyncService extends BaseCaseSyncService {
+  
   constructor(businessApi: BaseBusinessApi) {
     super(businessApi);
   }
+
+  async release(businessType: BusinessType, username: string): Promise<void> {
+  }
+
 
   /**
    * 重写解密手机号方法，使用 Adapundi 特定的解密逻辑

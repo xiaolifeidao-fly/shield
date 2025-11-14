@@ -415,14 +415,9 @@ export abstract class DoorEngine<T = any> {
     }
 
     public async release(){
-        // const browserKey = this.getBrowserKey();
-        // if(browserMap.has(browserKey)){
-        //     const browser = browserMap.get(browserKey);
-        //     if(browser){
-        //         await browser.close();
-        //     }
-        //     browserMap.delete(browserKey);
-        // }
+        await this.closePage();
+        await this.closeContext();
+        await this.closeBrowser();
     }
 
 

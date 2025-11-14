@@ -17,6 +17,19 @@ export async function getEngineInstance(resourceId: string): Promise<EngineInsta
     return engine;
 }
 
+export async function releaseEngineInstance(resourceId: string): Promise<void> {
+    if (engineInstances.has(resourceId)) {
+        const engine = engineInstances.get(resourceId)!;
+        await engine.release(); 
+        engineInstances.delete(resourceId);
+        if(pageInstances.has(resourceId)) {
+            const page = pageInstances.get(resourceId)!;
+            await page.close();
+            pageInstances.delete(resourceId);
+        }
+    }
+}
+
 
 export async function getPage(resourceId: string, url: string): Promise<Page | undefined> {
     let page = pageInstances.get(resourceId);
