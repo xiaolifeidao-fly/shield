@@ -491,6 +491,7 @@ export abstract class BaseCaseSyncService {
         if (stopped) {
           stats.running = false;
           saveUserSyncStats(username, stats);
+          log.info(`syncPageCases stopped: ${JSON.stringify(stats)}`);
           break;
         }
 
@@ -530,6 +531,8 @@ export abstract class BaseCaseSyncService {
       throw error;
     }finally{
       saveUserSyncStats(username, stats);
+      await this.release(businessType, username);
+      log.info(`syncUserCases finally: ${JSON.stringify(stats)}`);
     }
   }
 

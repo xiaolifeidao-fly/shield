@@ -411,6 +411,7 @@ export abstract class DoorEngine<T = any> {
     public async closePage(){
         if(this.page){
             await this.page.close();
+            log.info("closePage success");
         }
     }
 
@@ -612,12 +613,14 @@ export abstract class DoorEngine<T = any> {
     public async closeContext(){
         if(this.context){
             await this.context.close();
+            log.info("closeContext success");
         }
     }
 
     public async closeBrowser(){
         if(this.browser){
             await this.browser.close();
+            log.info("closeBrowser success");
         }
     }
 

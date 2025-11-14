@@ -30,12 +30,7 @@ export async function syncUserCases(
   // 根据 businessType 获取对应的同步服务
   const syncService = businessFactoryRegistry.getSyncService(userInfo.businessType);
   
-  try{
-    // 调用同步服务的 syncUserCases 方法
-    return await syncService.syncUserCases(userInfo, params);
-  }finally{
-    await syncService.release(userInfo.businessType, userInfo.username);
-  }
+  return await syncService.syncUserCases(userInfo, params);
 }
 
 /**
