@@ -177,6 +177,7 @@ const UserManagement: React.FC = () => {
       />
       <UserStats
         users={filteredUsers}
+        allUsers={users}
         businessType={selectedBusinessType}
       />
       <UserTable

@@ -3,14 +3,20 @@
 import React from 'react';
 import { Card, Row, Col, Statistic } from 'antd';
 import { UserOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, SyncOutlined, FieldTimeOutlined } from '@ant-design/icons';
-import { UserInfo } from './UserManagement.types';
+import { UserInfo, BusinessType } from './UserManagement.types';
 
 interface UserStatsProps {
   users: UserInfo[];
+  allUsers: UserInfo[];
   businessType: string;
 }
 
-const UserStats: React.FC<UserStatsProps> = ({ users, businessType }) => {
+const businessTypeLabels: Record<BusinessType, string> = {
+  adapundi: 'Adapundi',
+  singa: 'Singa'
+};
+
+const UserStats: React.FC<UserStatsProps> = ({ users, allUsers, businessType }) => {
   // 计算统计数据
   const calculateStats = () => {
     const userCount = users.length;
@@ -47,6 +53,22 @@ const UserStats: React.FC<UserStatsProps> = ({ users, businessType }) => {
   };
 
   const stats = calculateStats();
+
+  const calculateBusinessTypeTotals = () => {
+    const totals: Array<{ type: BusinessType; totalCount: number }> = [];
+    (Object.keys(businessTypeLabels) as BusinessType[]).forEach(type => {
+      const totalCount = allUsers.reduce((acc, user) => {
+        if (user.businessType === type && user.syncStats) {
+          return acc + (user.syncStats.totalCount || 0);
+        }
+        return acc;
+      }, 0);
+      totals.push({ type, totalCount });
+    });
+    return totals;
+  };
+
+  const businessTypeTotals = calculateBusinessTypeTotals();
 
   // Format duration
   const formatDuration = (seconds: number) => {
@@ -143,6 +165,21 @@ const UserStats: React.FC<UserStatsProps> = ({ users, businessType }) => {
             </div>
           </div>
         </Col>
+      </Row>
+      <div style={{ color: 'rgba(255, 255, 255, 0.85)', marginTop: 16, marginBottom: 8 }}>
+        Business Type Totals
+      </div>
+      <Row gutter={16}>
+        {businessTypeTotals.map(item => (
+          <Col key={item.type} xs={24} sm={12} md={8} lg={4}>
+            <Statistic
+              title={<span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{businessTypeLabels[item.type]}</span>}
+              value={item.totalCount}
+              prefix={<SyncOutlined />}
+              valueStyle={{ color: '#fff', fontSize: 24 }}
+            />
+          </Col>
+        ))}
       </Row>
     </Card>
   );

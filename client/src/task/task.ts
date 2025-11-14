@@ -169,15 +169,12 @@ class ScheduledTaskManager {
             
             log.info(`[ScheduledTaskManager] Found ${businessUsers.length} users for business type: ${businessType}`);
             
-            // 并行执行所有用户的 runUser 操作
-            const promises = businessUsers.map(user => 
-                this.userImpl.runUser(user.username).catch(err => {
+            for(const user of businessUsers) {
+                await this.userImpl.runUser(user.username).catch(err => {
                     log.error(`[ScheduledTaskManager] Failed to run user ${user.username}:`, err);
                     // 不抛出错误，继续执行其他用户
-                })
-            );
-            
-            await Promise.all(promises);
+                });
+            }
             log.info(`[ScheduledTaskManager] Completed scheduled task for business type: ${businessType}`);
         } catch (error) {
             log.error(`[ScheduledTaskManager] Error executing task for business type ${businessType}:`, error);
