@@ -34,7 +34,7 @@ export async function syncUserCases(
     // 调用同步服务的 syncUserCases 方法
     return await syncService.syncUserCases(userInfo, params);
   }finally{
-    syncService.release(userInfo.businessType, userInfo.username);
+    await syncService.release(userInfo.businessType, userInfo.username);
   }
 }
 
