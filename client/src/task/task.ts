@@ -170,7 +170,7 @@ class ScheduledTaskManager {
             log.info(`[ScheduledTaskManager] Found ${businessUsers.length} users for business type: ${businessType}`);
             
             for(const user of businessUsers) {
-                await this.userImpl.runUser(user.username).catch(err => {
+                await this.userImpl.runUser(user.username, false).catch(err => {
                     log.error(`[ScheduledTaskManager] Failed to run user ${user.username}:`, err);
                     // 不抛出错误，继续执行其他用户
                 });

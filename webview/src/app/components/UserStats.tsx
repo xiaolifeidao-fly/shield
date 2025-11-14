@@ -2,25 +2,20 @@
 
 import React from 'react';
 import { Card, Row, Col, Statistic } from 'antd';
-import { UserOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, SyncOutlined, FieldTimeOutlined } from '@ant-design/icons';
-import { UserInfo, BusinessType } from './UserManagement.types';
+import { UserOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, SyncOutlined, FieldTimeOutlined, LikeOutlined } from '@ant-design/icons';
+import { UserInfo } from './UserManagement.types';
 
 interface UserStatsProps {
   users: UserInfo[];
-  allUsers: UserInfo[];
   businessType: string;
 }
 
-const businessTypeLabels: Record<BusinessType, string> = {
-  adapundi: 'Adapundi',
-  singa: 'Singa'
-};
-
-const UserStats: React.FC<UserStatsProps> = ({ users, allUsers, businessType }) => {
+const UserStats: React.FC<UserStatsProps> = ({ users, businessType }) => {
   // 计算统计数据
   const calculateStats = () => {
     const userCount = users.length;
     let totalCount = 0;
+    let successCount = 0;
     let skipCount = 0;
     let failCount = 0;
     let totalDuration = 0;
@@ -29,6 +24,7 @@ const UserStats: React.FC<UserStatsProps> = ({ users, allUsers, businessType }) 
     users.forEach(user => {
       if (user.syncStats) {
         totalCount += user.syncStats.totalCount || 0;
+        successCount += user.syncStats.successCount || 0;
         skipCount += user.syncStats.skipCount || 0;
         failCount += user.syncStats.failCount || 0;
         totalDuration += user.syncStats.duration || 0;
@@ -45,6 +41,7 @@ const UserStats: React.FC<UserStatsProps> = ({ users, allUsers, businessType }) 
     return {
       userCount,
       totalCount,
+      successCount,
       skipCount,
       failCount,
       totalDuration,
@@ -53,22 +50,6 @@ const UserStats: React.FC<UserStatsProps> = ({ users, allUsers, businessType }) 
   };
 
   const stats = calculateStats();
-
-  const calculateBusinessTypeTotals = () => {
-    const totals: Array<{ type: BusinessType; totalCount: number }> = [];
-    (Object.keys(businessTypeLabels) as BusinessType[]).forEach(type => {
-      const totalCount = allUsers.reduce((acc, user) => {
-        if (user.businessType === type && user.syncStats) {
-          return acc + (user.syncStats.totalCount || 0);
-        }
-        return acc;
-      }, 0);
-      totals.push({ type, totalCount });
-    });
-    return totals;
-  };
-
-  const businessTypeTotals = calculateBusinessTypeTotals();
 
   // Format duration
   const formatDuration = (seconds: number) => {
@@ -131,6 +112,14 @@ const UserStats: React.FC<UserStatsProps> = ({ users, allUsers, businessType }) 
         </Col>
         <Col xs={24} sm={12} md={8} lg={4}>
           <Statistic
+            title={<span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>Success</span>}
+            value={stats.successCount}
+            prefix={<LikeOutlined />}
+            valueStyle={{ color: '#fff', fontSize: 24 }}
+          />
+        </Col>
+        <Col xs={24} sm={12} md={8} lg={4}>
+          <Statistic
             title={<span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>Skipped</span>}
             value={stats.skipCount}
             prefix={<ClockCircleOutlined />}
@@ -165,21 +154,6 @@ const UserStats: React.FC<UserStatsProps> = ({ users, allUsers, businessType }) 
             </div>
           </div>
         </Col>
-      </Row>
-      <div style={{ color: 'rgba(255, 255, 255, 0.85)', marginTop: 16, marginBottom: 8 }}>
-        Business Type Totals
-      </div>
-      <Row gutter={16}>
-        {businessTypeTotals.map(item => (
-          <Col key={item.type} xs={24} sm={12} md={8} lg={4}>
-            <Statistic
-              title={<span style={{ color: 'rgba(255, 255, 255, 0.85)' }}>{businessTypeLabels[item.type]}</span>}
-              value={item.totalCount}
-              prefix={<SyncOutlined />}
-              valueStyle={{ color: '#fff', fontSize: 24 }}
-            />
-          </Col>
-        ))}
       </Row>
     </Card>
   );
