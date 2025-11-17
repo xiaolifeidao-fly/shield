@@ -394,6 +394,7 @@ export abstract class BaseCaseSyncService {
   ): Promise<boolean> {
     stats.totalCount = totalNum;
     for (const caseItem of records) {
+      log.info(`syncPageCases start sync single case: ${JSON.stringify(caseItem)}`);
       if (getStopFlag(username)) {
         log.info(`syncPageCases stop flag is true, return true`);
         return true;
