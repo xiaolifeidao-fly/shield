@@ -395,7 +395,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
     let page;
     try {
       // 初始化页面
-      const url = 'https://col.singa.id/loan-collection/assign/need-follow-up?page=' + pageNum;
+      const url = 'https://col.singa.id/loan-collection/assign/need-follow-up?page=' + pageNum + "&pageSize=1000";
       page = await getPage(resourceId, url) as unknown as Page;
       if (!page) {
         throw new Error('无法初始化页面');
