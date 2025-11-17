@@ -34,6 +34,5 @@ export async function writeCase(
     loanPlan: loanPlan,
     loanSource: businessType || null
   };
-  log.info(`writeCase requestData: ${JSON.stringify(requestData)}`);
   await writeCaseInstance.post("/loan/import/external/sync", requestData);
 }

@@ -288,9 +288,7 @@ export abstract class BaseCaseSyncService {
       }
       // log.info(`syncSingleCase caseItem: ${JSON.stringify(caseItem)}`);
       // 获取案例详情
-      log.info(`syncSingleCase start getCaseDetail caseItem`);
       const caseDetail = await this.businessApi.getCaseDetail(caseItem.product, caseItem);
-      log.info(`syncSingleCase end getCaseDetail caseItem`);
       // 获取还款计划
       let loanPlan: LoanPlan[] = [];
       try {
