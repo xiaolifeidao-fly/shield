@@ -275,6 +275,7 @@ export abstract class BaseCaseSyncService {
     }
 
     if (enableDeduplication && !shouldSync(cache, caseItem.caseId)) {
+      log.info(`syncSingleCase skip case: ${caseItem.caseId} because it has been synced today`);
       stats.skipCount++;
       saveUserSyncStats(username, stats);
       return false;
@@ -474,7 +475,7 @@ export abstract class BaseCaseSyncService {
         const pageResponse = await this.getCasePage(pageNum, pageSize, params);
         
         
-        log.info(`pageResponse: ${JSON.stringify(pageResponse.total)} total records : ${pageResponse?.records?.length} cost: ${Math.round((Date.now() - startTime) / 1000)}s`);
+        log.info(`syncPageCases pageNum: ${pageNum} pageResponse: ${JSON.stringify(pageResponse.total)} total records : ${pageResponse?.records?.length} cost: ${Math.round((Date.now() - startTime) / 1000)}s`);
         stats.totalCount = pageResponse.total;
         saveUserSyncStats(username, stats);
         if (!pageResponse?.records || pageResponse?.records?.length === 0) {
