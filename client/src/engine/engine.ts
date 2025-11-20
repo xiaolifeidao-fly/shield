@@ -331,13 +331,10 @@ export abstract class DoorEngine<T = any> {
         return page;
     }
 
+
     async createContextByPersistentContext(): Promise<BrowserContext> {
         let storeBrowserPath = await this.getRealChromePath();
-
-        let key = this.getKey();
-        if(storeBrowserPath){
-            key += "_" + storeBrowserPath;
-        }   
+        let key = this.getPreKey();
         log.info("browser key is ", key);
         if(contextMap.has(key)){
             return contextMap.get(key) as BrowserContext;
@@ -613,6 +610,7 @@ export abstract class DoorEngine<T = any> {
     public async closeContext(){
         if(this.context){
             await this.context.close();
+            contextMap.delete(this.getPreKey());
             log.info("closeContext success");
         }
     }
@@ -620,6 +618,7 @@ export abstract class DoorEngine<T = any> {
     public async closeBrowser(){
         if(this.browser){
             await this.browser.close();
+            browserMap.delete(this.getBrowserKey());
             log.info("closeBrowser success");
         }
     }
@@ -747,11 +746,18 @@ export abstract class DoorEngine<T = any> {
         const paramsKey = this.getKey() + "_" + key;
         return getGlobal(paramsKey);
     }
+
+    getPreKey(){
+        const key = this.headless.toString() + "_" + this.getKey();
+        return key;
+    }
+
+
     async createContext(){
         if(!this.browser){
             return;
         }
-        const key = this.headless.toString() + "_" + this.getKey();
+        const key = this.getPreKey();
         if(contextMap.has(key)){
             return contextMap.get(key);
         }
@@ -831,7 +837,7 @@ export abstract class DoorEngine<T = any> {
         let key = this.headless.toString() + "_" + this.needValidateImage.toString();
         if (this.chromePath) {
             key += "_" + this.chromePath;
-        }
+        }  
         return key;
     }
 
