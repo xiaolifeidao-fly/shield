@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { getGlobal, setGlobal, removeGlobal } from '@utils/store/electron';
-import { UserInfo } from '@eleapi/user/user.api';
-import log from "electron-log";
+import { getGlobal, setGlobal, removeGlobal } from '@src/utils/store/conf';
+import { UserInfo } from '@model/user.types';
+import log from "../../../utils/logger";
 import * as dotenv from 'dotenv';
 const path = require('path');
 dotenv.config({path: path.join(__dirname, '.env')}); // 加载 .env 文件中的环境变量

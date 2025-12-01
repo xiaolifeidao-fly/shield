@@ -1,6 +1,6 @@
 import { AxiosInstance } from 'axios';
 import { Case, CasePageParams, CasePageResponse, CaseDetail, LoanPlan, CustomerInfo } from './entities';
-import { UserInfo, BusinessType } from '@eleapi/user/user.api';
+import { UserInfo, BusinessType } from '@model/user.types';
 
 /**
  * 业务 API 抽象基类

@@ -1,10 +1,10 @@
 import { AxiosInstance } from 'axios';
 import { BaseBusinessApi } from '../../common/base.api';
 import { CasePageParams, CasePageResponse, CaseDetail, LoanPlan, CustomerInfo, Case } from '../../common/entities';
-import { UserInfo, BusinessType } from '@eleapi/user/user.api';
+import { UserInfo, BusinessType } from '@model/user.types';
 import { adapundiInstance, writeCaseInstance, setCurrentUser, getCurrentUser } from './adapundi.axios';
 import { decryptPhone, AuditDataType, DecryptPhoneParams } from './phone.api';
-import log from 'electron-log';
+import log from '../../../utils/logger';
 
 /**
  * Adapundi 业务 API 实现

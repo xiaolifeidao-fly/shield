@@ -1,10 +1,13 @@
 {
   "compilerOptions": {
-    "target": "ES2015",                                  
+    "target": "ES2020",                                  
     /* Modules */
-    "module": "CommonJS",    
-    "lib": ["es2015"],
-    "esModuleInterop": true,                            
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "lib": ["ES2020"],
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,     
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
@@ -12,6 +15,7 @@
     "skipLibCheck": true  ,                             
     "outDir": "./dist",
     "types": ["node"],
+    "typeRoots": ["./node_modules/@types", "./src/types"],
     "baseUrl": "./",
     "paths": {
       "@src/*": [
@@ -26,13 +30,20 @@
       "@model/*": [
         "../common/model/*"
       ],
-      "@eleapi/*": [
-        "../common/eleapi/*"
+      "@api/*": [
+        "../common/api/*"
       ],
       "@enums/*": [
         "../common/enums/*"
       ]
     }
   },
-  "include": ["src/**/*","../common/utils/**/*", "../common/utils/store/web.ts", "../common/utils/store/local.ts"]
+  "include": ["src/**/*", "src/types/**/*", "../common/utils/**/*", "../common/utils/store/web.ts", "../common/utils/store/local.ts"],
+  "ts-node": {
+    "compilerOptions": {
+      "module": "commonjs"
+    },
+    "files": true,
+    "transpileOnly": false
+  }
 }

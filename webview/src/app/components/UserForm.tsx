@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Form, Input, Select } from 'antd';
-import { UserInfo } from './UserManagement.types';
+import { UserInfo } from '@/api';
 
 interface UserFormProps {
   form: any;

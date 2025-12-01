@@ -1,7 +1,8 @@
-import { UserApi, UserInfo } from "@eleapi/user/user.api";
-import { getGlobal, setGlobal } from "@utils/store/electron";
+import { UserApi } from "@api/user.api";
+import { UserInfo } from "@model/user.types";
+import { getGlobal, setGlobal } from "@src/utils/store/conf";
 import { businessFactoryRegistry } from "@src/business";
-import log from "electron-log";
+import log from "../../utils/logger";
 const USER_LIST_KEY = "userList";
 
 export class UserImpl extends UserApi {

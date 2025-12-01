@@ -1,8 +1,8 @@
-import { getGlobal, setGlobal } from '@utils/store/electron';
-import { SyncStats, UserInfo, BusinessType } from '@eleapi/user/user.api';
+import { getGlobal, setGlobal } from '@src/utils/store/conf';
+import { SyncStats, UserInfo, BusinessType } from '@model/user.types';
 import { Case, CaseDetail, LoanPlan, CustomerInfo, CasePageResponse } from './entities';
 import { BaseBusinessApi } from './base.api';
-import log from 'electron-log';
+import log from '@src/utils/logger';
 
 /**
  * 同步缓存数据结构（以 username + businessType 为唯一标识）

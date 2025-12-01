@@ -1,10 +1,10 @@
 import { AxiosInstance } from 'axios';
 import { BaseBusinessApi } from '../../common/base.api';
 import { CasePageParams, CasePageResponse, CaseDetail, LoanPlan, CustomerInfo, Case, LoanDetail } from '../../common/entities';
-import { UserInfo, BusinessType } from '@eleapi/user/user.api';
+import { UserInfo, BusinessType } from '@model/user.types';
 import { getCurrentUser, setCurrentUser, writeCaseInstance } from '../../adapundi/api/adapundi.axios';
 import { EngineInstance } from '@src/engine/engine.instance';
-import log from 'electron-log';
+import log from '../../../utils/logger';
 import { getPage } from '@src/business/common/engine.manager';
 import { Page } from 'playwright-core';
 import { login as singaLogin } from './login.api';

@@ -1,9 +1,9 @@
 import { BaseCaseSyncService } from '../../common/base.sync';
 import { BaseBusinessApi } from '../../common/base.api';
 import { Case, CaseDetail } from '../../common/entities';
-import { BusinessType, SyncStats } from '@eleapi/user/user.api';
+import { BusinessType, SyncStats } from '@model/user.types';
 import { decryptPhone, AuditDataType } from '../api/phone.api';
-import log from 'electron-log';
+import log from '../../../utils/logger';
 
 interface SyncCache {
   [caseId: string]: string;

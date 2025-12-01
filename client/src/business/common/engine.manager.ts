@@ -1,6 +1,6 @@
 import { EngineInstance } from "@src/engine/engine.instance";
 import { Page } from "playwright";
-import log from "electron-log"
+import log from "../../utils/logger"
 
 const engineInstances: Map<string, EngineInstance> = new Map();
 

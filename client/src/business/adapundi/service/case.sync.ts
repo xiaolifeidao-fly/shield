@@ -1,8 +1,8 @@
-import { SyncStats, UserInfo, BusinessType } from "@eleapi/user/user.api";
+import { SyncStats, UserInfo, BusinessType } from "@model/user.types";
 import { businessFactoryRegistry } from "../../common/factory";
 import { BaseBusinessApi } from "../../common/base.api";
-import { getGlobal } from "../../../../../common/utils/store/electron";
-import log from "electron-log";
+import { getGlobal } from "../../../utils/store/conf";
+import log from "../../../utils/logger";
 
 /**
  * 通用案例同步服务适配器

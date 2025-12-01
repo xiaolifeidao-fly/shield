@@ -1,4 +1,4 @@
-import { BusinessType } from '@eleapi/user/user.api';
+import { BusinessType } from '@model/user.types';
 import { businessFactoryRegistry, BusinessApiFactory, BusinessSyncServiceFactory } from '../common/factory';
 import { AdapundiBusinessApi } from './api/adapundi.api';
 import { AdapundiCaseSyncService } from './service/adapundi.sync';

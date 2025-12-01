@@ -1,7 +1,7 @@
 import { writeCaseInstance } from "./adapundi.axios";
 import { CaseDetail, LoanPlan, CustomerInfo } from "../../common/entities";
-import { BusinessType } from "@eleapi/user/user.api";
-import log from "electron-log";
+import { BusinessType } from "@model/user.types";
+import log from "../../../utils/logger";
 /**
  * writeCase 接口的请求参数类型
  * 与 caseDataWithLoanSource 结构一致：展开 caseDetail、customerInfo，包含 loanPlan 数组和 loanSource
