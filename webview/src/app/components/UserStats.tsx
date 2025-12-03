@@ -3,7 +3,7 @@
 import React from 'react';
 import { Card, Row, Col, Statistic } from 'antd';
 import { UserOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, SyncOutlined, FieldTimeOutlined, LikeOutlined } from '@ant-design/icons';
-import { UserInfo } from './UserManagement.types';
+import { UserInfo } from '@/api';
 
 interface UserStatsProps {
   users: UserInfo[];

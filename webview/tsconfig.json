@@ -37,9 +37,6 @@
       "@model/*": [
         "../common/model/*"
       ],
-      "@eleapi/*": [
-        "../common/eleapi/*"
-      ],
       "@enums/*": [
         "../common/enums/*"
       ]
@@ -54,5 +51,5 @@
     "**/*.ts",
     "**/*.tsx",
     "../common/**/*.ts"
-  ]
+, "../client/src/utils/store/conf.ts"  ]
 }

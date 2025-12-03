@@ -9,8 +9,8 @@ import fs from 'fs';
 
 require('dotenv').config();
 
-const prefix = process.env.APP_URL_PREFIX;
-const target = process.env.SERVER_TARGET;
+const prefix = "api";
+const target = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 
 export default async function handler(req, res) {
@@ -41,6 +41,7 @@ export default async function handler(req, res) {
   }
   try {
     const url = getTargetUrl(req.url);
+    console.log("request url is ", url);
     const response = await request(url, req)
     // 获取目标服务器的响应
     const data = response.data;

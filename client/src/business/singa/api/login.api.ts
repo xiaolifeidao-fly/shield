@@ -1,7 +1,7 @@
-import { UserInfo } from '@eleapi/user/user.api';
-import { getPage } from '../../common/engine.manager';
+import { UserInfo } from '@model/user.types';
+import { getPage } from '@src/business/common/engine.manager';
 import { Page } from 'playwright-core';
-import log from 'electron-log';
+import log from '../../../utils/logger';
 
 /**
  * 登录响应接口

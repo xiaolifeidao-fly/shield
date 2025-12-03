@@ -1,6 +1,7 @@
-import { SystemApi, SyncTimeConfig } from "@eleapi/config/system.api";
-import { getGlobal, setGlobal } from "@utils/store/electron";
-import { BusinessType } from "@eleapi/user/user.api";
+import { SystemApi } from "@api/system.api";
+import { SyncTimeConfig } from "@model/system.types";
+import { BusinessType } from "@model/user.types";
+import { getGlobal, setGlobal } from "@src/utils/store/conf";
 import { rescheduleScheduledTasks, getTaskManager } from "@src/task/task";
 
 const SYNC_TIME_CONFIG_KEY = "syncTimeConfig";

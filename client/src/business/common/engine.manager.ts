@@ -1,6 +1,6 @@
 import { EngineInstance } from "@src/engine/engine.instance";
 import { Page } from "playwright";
-import log from "electron-log"
+import log from "../../utils/logger"
 
 const engineInstances: Map<string, EngineInstance> = new Map();
 
@@ -11,7 +11,7 @@ export async function getEngineInstance(resourceId: string): Promise<EngineInsta
     if (engineInstances.has(resourceId)) {
         return engineInstances.get(resourceId)!;
     }
-    const engine = new EngineInstance(resourceId);
+    const engine = new EngineInstance(resourceId, false);
     log.info("getEngineInstance headless is false");
     engineInstances.set(resourceId, engine);
     return engine;

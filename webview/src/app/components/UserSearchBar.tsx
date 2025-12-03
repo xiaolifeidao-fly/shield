@@ -3,7 +3,7 @@
 import React from 'react';
 import { Input, Select, Button, Checkbox } from 'antd';
 import { SearchOutlined, PlusOutlined } from '@ant-design/icons';
-import { BusinessType } from './UserManagement.types';
+import { BusinessType } from '@/api';
 
 interface UserSearchBarProps {
   searchText: string;

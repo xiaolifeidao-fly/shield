@@ -1,4 +1,4 @@
-import { BusinessType } from '@eleapi/user/user.api';
+import { BusinessType } from '@model/user.types';
 import { businessFactoryRegistry, BusinessApiFactory, BusinessSyncServiceFactory } from '../common/factory';
 import { SingaBusinessApi } from './api/singa.api';
 import { SingaCaseSyncService } from './service/singa.sync';

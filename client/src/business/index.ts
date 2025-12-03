@@ -3,6 +3,7 @@
  */
 import { registerAdapundiBusiness } from './adapundi/adapundi.register';
 import { registerSingaBusiness } from './singa/singa.register';
+import { registerKatBusiness } from './kat/kat.register';
 
 /**
  * 初始化所有业务类型
@@ -11,6 +12,7 @@ import { registerSingaBusiness } from './singa/singa.register';
 export function initializeBusinesses(): void {
   registerAdapundiBusiness();
   registerSingaBusiness();
+  registerKatBusiness();
 }
 
 // 导出业务工厂注册表

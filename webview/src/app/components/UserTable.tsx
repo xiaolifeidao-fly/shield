@@ -5,7 +5,7 @@ import { Table, Button, Popconfirm, Space, Progress, Typography, Tag, Tooltip, D
 import { EditOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined, MoreOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
-import { UserInfo, BusinessType, SyncStats } from './UserManagement.types';
+import { UserInfo, BusinessType, SyncStats } from '@/api';
 
 const { Text } = Typography;
 

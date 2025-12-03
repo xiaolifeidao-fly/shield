@@ -1,7 +1,7 @@
 import { BaseCaseSyncService } from '../../common/base.sync';
 import { BaseBusinessApi } from '../../common/base.api';
 import { Case, CaseDetail, CustomerInfo, LoanPlan } from '@src/business/common/entities';
-import { BusinessType } from '@eleapi/user/user.api';
+import { BusinessType } from '@model/user.types';
 import { releaseEngineInstance } from '@src/business/common/engine.manager';
 
 /**

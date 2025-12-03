@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "target": "ES2015",                                  
+    "target": "ES2020",                                  
     /* Modules */
     "module": "CommonJS",    
-    "lib": ["es2015"],
+    "lib": ["ES2020"],
     "esModuleInterop": true,                            
     "forceConsistentCasingInFileNames": true,     
     "experimentalDecorators": true,

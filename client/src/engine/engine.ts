@@ -1,10 +1,9 @@
 import path from 'path';
 import fs from 'fs'
 import { Browser, chromium, devices,firefox, BrowserContext, Page, Route ,Request, Response} from 'playwright';
-import {  getGlobal, removeGlobal, setGlobal } from '@utils/store/electron';
-import { app, screen as electronScreen } from 'electron';
+import {  getGlobal, removeGlobal, setGlobal } from '@src/utils/store/conf';
 import { DoorEntity } from './entity';
-import log from 'electron-log';
+import log from '../utils/logger';
 import os from 'os';
 import { env } from 'process';
 import { Monitor, MonitorChain, MonitorRequest, MonitorResponse } from './monitor/monitor';
@@ -646,7 +645,7 @@ export abstract class DoorEngine<T = any> {
     }
 
     public getLastSessionDir(){
-        const userDataPath = app.getPath('userData');
+        const userDataPath = path.join(os.homedir(), '.config', 'shield');
 
         const sessionDirPath = path.join(userDataPath,'resource','session',this.getNamespace(), this.resourceId.toString());
         log.info("sessionDirPath is ", sessionDirPath);
@@ -665,7 +664,7 @@ export abstract class DoorEngine<T = any> {
 
     public getSessionDir(){
         const sessionFileName = Date.now().toString() + ".json";
-        const userDataPath = app.getPath('userData');
+        const userDataPath = path.join(os.homedir(), '.config', 'shield');
 
         const sessionDirPath = path.join(userDataPath,'resource','session',this.getNamespace(), this.resourceId.toString());
         if(!fs.existsSync(sessionDirPath)){
@@ -676,7 +675,7 @@ export abstract class DoorEngine<T = any> {
     }
 
     getUserDataDir(){
-        const userDataPath = app.getPath('userData');
+        const userDataPath = path.join(os.homedir(), '.config', 'shield');
         const userDataDir = path.join(userDataPath,'resource','userDataDir',this.getNamespace(), this.resourceId.toString());
         log.info("userDataDir is ", userDataDir);
         if(!fs.existsSync(userDataDir)){

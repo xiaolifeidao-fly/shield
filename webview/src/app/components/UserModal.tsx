@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Modal } from 'antd';
-import { UserInfo } from './UserManagement.types';
+import { UserInfo } from '@/api';
 import UserForm from './UserForm';
 
 interface UserModalProps {

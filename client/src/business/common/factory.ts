@@ -1,4 +1,4 @@
-import { BusinessType } from '@eleapi/user/user.api';
+import { BusinessType } from '@model/user.types';
 import { BaseBusinessApi } from './base.api';
 import { BaseCaseSyncService } from './base.sync';
 

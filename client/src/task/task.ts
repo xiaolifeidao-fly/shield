@@ -1,9 +1,9 @@
-import { BusinessType } from "@eleapi/user/user.api";
-import { SyncTimeConfig } from "@eleapi/config/system.api";
+import { BusinessType } from "@model/user.types";
+import { SyncTimeConfig } from "@model/system.types";
 import { SystemImpl } from "@src/impl/config/system.impl";
 import { UserImpl } from "@src/impl/user/user.impl";
 import { clearBusinessTypeCache } from "@src/business/common/base.sync";
-import log from 'electron-log';
+import log from '../utils/logger';
 
 /**
  * 定时任务管理器
