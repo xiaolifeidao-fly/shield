@@ -4,10 +4,11 @@
   "description": "Shield Assistant Express Server",
   "main": "dist/main.js",
   "scripts": {
-    "dev": "npx tsx src/main.ts",
+    "dev": "npx webpack --config webpack.config.js --mode development && node dist/main.js",
+    "dev:tsx": "npx tsx src/main.ts",
     "build": "npx webpack --config webpack.config.js --mode production",
     "start": "node dist/main.js",
-    "dev:watch": "npx tsx watch src/main.ts",
+    "dev:watch": "npx webpack --config webpack.config.js --mode development --watch",
     "prod": "NODE_ENV=production node dist/main.js"
   },
   "_moduleAliases": {
@@ -16,6 +17,9 @@
     "@api": "dist/common/api",
     "@utils": "dist/common/utils",
     "@enums": "dist/common/enums"
+  },
+  "tsx": {
+    "tsconfig": "./tsconfig.json"
   },
   "keywords": [],
   "author": "",

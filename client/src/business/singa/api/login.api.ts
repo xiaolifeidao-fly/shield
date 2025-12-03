@@ -1,5 +1,5 @@
 import { UserInfo } from '@model/user.types';
-import { getPage } from '../../common/engine.manager';
+import { getPage } from '@src/business/common/engine.manager';
 import { Page } from 'playwright-core';
 import log from '../../../utils/logger';
 
