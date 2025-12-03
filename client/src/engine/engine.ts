@@ -1,10 +1,9 @@
 import path from 'path';
 import fs from 'fs'
 import { Browser, chromium, devices,firefox, BrowserContext, Page, Route ,Request, Response} from 'playwright';
-import {  getGlobal, removeGlobal, setGlobal } from '@utils/store/electron';
-import { app, screen as electronScreen } from 'electron';
+import {  getGlobal, removeGlobal, setGlobal } from '@src/utils/store/conf';
 import { DoorEntity } from './entity';
-import log from 'electron-log';
+import log from '../utils/logger';
 import os from 'os';
 import { env } from 'process';
 import { Monitor, MonitorChain, MonitorRequest, MonitorResponse } from './monitor/monitor';
@@ -331,13 +330,10 @@ export abstract class DoorEngine<T = any> {
         return page;
     }
 
+
     async createContextByPersistentContext(): Promise<BrowserContext> {
         let storeBrowserPath = await this.getRealChromePath();
-
-        let key = this.getKey();
-        if(storeBrowserPath){
-            key += "_" + storeBrowserPath;
-        }   
+        let key = this.getPreKey();
         log.info("browser key is ", key);
         if(contextMap.has(key)){
             return contextMap.get(key) as BrowserContext;
@@ -388,9 +384,9 @@ export abstract class DoorEngine<T = any> {
             extraHTTPHeaders: {
                 'sec-ch-ua': getSecChUa(platform),
                 'sec-ch-ua-mobile': '?0', // 设置为移动设备
-                'sec-ch-ua-platform': `"${platform.userAgentData.platform}"`,
+                'sec-ch-ua-platform': platform?.userAgentData?.platform ? `"${platform.userAgentData.platform}"` : '"Windows"',
             },
-            userAgent: platform.userAgent,
+            userAgent: platform?.userAgent,
 
             bypassCSP : true,
             locale: 'zh-CN',
@@ -411,18 +407,14 @@ export abstract class DoorEngine<T = any> {
     public async closePage(){
         if(this.page){
             await this.page.close();
+            log.info("closePage success");
         }
     }
 
     public async release(){
-        // const browserKey = this.getBrowserKey();
-        // if(browserMap.has(browserKey)){
-        //     const browser = browserMap.get(browserKey);
-        //     if(browser){
-        //         await browser.close();
-        //     }
-        //     browserMap.delete(browserKey);
-        // }
+        await this.closePage();
+        await this.closeContext();
+        await this.closeBrowser();
     }
 
 
@@ -617,12 +609,16 @@ export abstract class DoorEngine<T = any> {
     public async closeContext(){
         if(this.context){
             await this.context.close();
+            contextMap.delete(this.getPreKey());
+            log.info("closeContext success");
         }
     }
 
     public async closeBrowser(){
         if(this.browser){
             await this.browser.close();
+            browserMap.delete(this.getBrowserKey());
+            log.info("closeBrowser success");
         }
     }
 
@@ -649,7 +645,7 @@ export abstract class DoorEngine<T = any> {
     }
 
     public getLastSessionDir(){
-        const userDataPath = app.getPath('userData');
+        const userDataPath = path.join(os.homedir(), '.config', 'shield');
 
         const sessionDirPath = path.join(userDataPath,'resource','session',this.getNamespace(), this.resourceId.toString());
         log.info("sessionDirPath is ", sessionDirPath);
@@ -668,7 +664,7 @@ export abstract class DoorEngine<T = any> {
 
     public getSessionDir(){
         const sessionFileName = Date.now().toString() + ".json";
-        const userDataPath = app.getPath('userData');
+        const userDataPath = path.join(os.homedir(), '.config', 'shield');
 
         const sessionDirPath = path.join(userDataPath,'resource','session',this.getNamespace(), this.resourceId.toString());
         if(!fs.existsSync(sessionDirPath)){
@@ -679,7 +675,7 @@ export abstract class DoorEngine<T = any> {
     }
 
     getUserDataDir(){
-        const userDataPath = app.getPath('userData');
+        const userDataPath = path.join(os.homedir(), '.config', 'shield');
         const userDataDir = path.join(userDataPath,'resource','userDataDir',this.getNamespace(), this.resourceId.toString());
         log.info("userDataDir is ", userDataDir);
         if(!fs.existsSync(userDataDir)){
@@ -749,11 +745,18 @@ export abstract class DoorEngine<T = any> {
         const paramsKey = this.getKey() + "_" + key;
         return getGlobal(paramsKey);
     }
+
+    getPreKey(){
+        const key = this.headless.toString() + "_" + this.getKey();
+        return key;
+    }
+
+
     async createContext(){
         if(!this.browser){
             return;
         }
-        const key = this.headless.toString() + "_" + this.getKey();
+        const key = this.getPreKey();
         if(contextMap.has(key)){
             return contextMap.get(key);
         }
@@ -792,7 +795,7 @@ export abstract class DoorEngine<T = any> {
             extraHTTPHeaders: {
                 'sec-ch-ua': getSecChUa(platform),
                 'sec-ch-ua-mobile': '?0', // 设置为移动设备
-                'sec-ch-ua-platform': `"${platform.userAgentData.platform}"`,
+                'sec-ch-ua-platform': platform?.userAgentData?.platform ? `"${platform.userAgentData.platform}"` : '"Windows"',
             }
         }
         if(storeBrowserPath){
@@ -812,7 +815,7 @@ export abstract class DoorEngine<T = any> {
                 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,zh-TW;q=0.7',
                 'sec-ch-ua': getSecChUa(platform),
                 'sec-ch-ua-mobile': '?0', // 设置为移动设备
-                'sec-ch-ua-platform': `"${platform.userAgentData.platform}"`,
+                'sec-ch-ua-platform': platform?.userAgentData?.platform ? `"${platform.userAgentData.platform}"` : '"Windows"',
             };
         }
 
@@ -833,7 +836,7 @@ export abstract class DoorEngine<T = any> {
         let key = this.headless.toString() + "_" + this.needValidateImage.toString();
         if (this.chromePath) {
             key += "_" + this.chromePath;
-        }
+        }  
         return key;
     }
 
@@ -1530,6 +1533,9 @@ export abstract class DoorEngine<T = any> {
 
 export function getSecChUa(platform : any){
     if(!platform){
+        return "";
+    }
+    if(!platform.userAgentData || !platform.userAgentData.brands){
         return "";
     }
     const brands = platform.userAgentData.brands;

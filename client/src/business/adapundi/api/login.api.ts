@@ -1,5 +1,5 @@
 import { authCenterInstance } from "./adapundi.axios";
-import { UserInfo } from "../../../../../common/eleapi/user/user.api";
+import { UserInfo } from "@model/user.types";
 
 /**
  * 登录响应接口

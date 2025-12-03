@@ -1,8 +1,9 @@
-import { BusinessType } from "@eleapi/user/user.api";
-import { SyncTimeConfig } from "@eleapi/config/system.api";
+import { BusinessType } from "@model/user.types";
+import { SyncTimeConfig } from "@model/system.types";
 import { SystemImpl } from "@src/impl/config/system.impl";
 import { UserImpl } from "@src/impl/user/user.impl";
-import log from 'electron-log';
+import { clearBusinessTypeCache } from "@src/business/common/base.sync";
+import log from '../utils/logger';
 
 /**
  * 定时任务管理器
@@ -12,7 +13,7 @@ class ScheduledTaskManager {
     private timers: Map<BusinessType, NodeJS.Timeout> = new Map();
     private systemImpl: SystemImpl;
     private userImpl: UserImpl;
-    private readonly businessTypes: BusinessType[] = ['adapundi', 'singa'];
+    private readonly businessTypes: BusinessType[] = ['adapundi', 'SINGA'];
 
     constructor() {
         this.systemImpl = new SystemImpl();
@@ -153,6 +154,10 @@ class ScheduledTaskManager {
         log.info(`[ScheduledTaskManager] Executing scheduled task for business type: ${businessType}`);
         
         try {
+            // 清理该 businessType 的缓存数据
+            log.info(`[ScheduledTaskManager] Clearing cache for business type: ${businessType}`);
+            clearBusinessTypeCache(businessType);
+            
             // 获取该业务类型下的所有用户
             const allUsers = await this.userImpl.getUserInfoList();
             const businessUsers = allUsers.filter(user => user.businessType === businessType);
@@ -164,15 +169,12 @@ class ScheduledTaskManager {
             
             log.info(`[ScheduledTaskManager] Found ${businessUsers.length} users for business type: ${businessType}`);
             
-            // 并行执行所有用户的 runUser 操作
-            const promises = businessUsers.map(user => 
-                this.userImpl.runUser(user.username).catch(err => {
+            for(const user of businessUsers) {
+                await this.userImpl.runUser(user.username, false).catch(err => {
                     log.error(`[ScheduledTaskManager] Failed to run user ${user.username}:`, err);
                     // 不抛出错误，继续执行其他用户
-                })
-            );
-            
-            await Promise.all(promises);
+                });
+            }
             log.info(`[ScheduledTaskManager] Completed scheduled task for business type: ${businessType}`);
         } catch (error) {
             log.error(`[ScheduledTaskManager] Error executing task for business type ${businessType}:`, error);

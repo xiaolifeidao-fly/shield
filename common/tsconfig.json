@@ -1,20 +1,21 @@
 {
     "compilerOptions": {
-      "module": "commonjs",
-      "target": "esnext",
+      "target": "ES2022",
+      "module": "NodeNext",
       "declaration": true,
       "experimentalDecorators": true,
       "emitDecoratorMetadata": true,
+      "moduleResolution": "nodenext",
+      "esModuleInterop": true,
       "baseUrl": "./",  
       "paths": {
         "@/*": ["./*"],
         "@api/*": ["./api/*"],
         "@utils/*": ["./utils/*"],
-        "@eleapi/*": ["./eleapi/*"],
         "@model/*": ["./model/*"],
         "@enums/*": ["./enums/*"]
       }
     },
-    "include": ["**/*"]
+    "include": ["**/*", "../client/src/utils/store/conf.ts"]
   }
   

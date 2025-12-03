@@ -1,12 +1,11 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import { getGlobal } from '@utils/store/electron';
-import { UserInfo } from '@eleapi/user/user.api';
-const path = require('path');
+import { getGlobal, setGlobal, removeGlobal } from '@src/utils/store/conf';
+import { UserInfo } from '@model/user.types';
+import log from "../../../utils/logger";
 import * as dotenv from 'dotenv';
-// 加载 .env 文件中的环境变量（如果还没有加载）
-if (!process.env.WRITE_CASE_API_BASE_URL) {
-  dotenv.config();
-}
+const path = require('path');
+// dotenv.config({path: path.join(__dirname, '.env')}); // 加载 .env 文件中的环境变量
+dotenv.config();
 
 // 定义一个 HttpError 类，扩展自 Error
 class HttpError extends Error {
@@ -27,8 +26,8 @@ function rejectHttpError(message: string, code?: any): Promise<never> {
   return Promise.reject(error);
 }
 
-// 维护 username 到 token 的映射
-const userTokenMap = new Map<string, string>();
+// Store 中的 key 前缀
+const USER_TOKEN_KEY_PREFIX = "userToken";
 
 // 当前操作的用户信息
 let currentUserInfo: UserInfo | null = null;
@@ -60,24 +59,34 @@ function getUserInfo(username: string): UserInfo | null {
 }
 
 /**
+ * 获取用户 token 的 store key
+ */
+function getUserTokenKey(username: string): string {
+  return `${USER_TOKEN_KEY_PREFIX}.${username}`;
+}
+
+/**
  * 设置用户 token
  */
 export function setUserToken(username: string, token: string): void {
-  userTokenMap.set(username, token);
+  const key = getUserTokenKey(username);
+  setGlobal(key, token);
 }
 
 /**
  * 获取用户 token
  */
 export function getUserToken(username: string): string | undefined {
-  return userTokenMap.get(username);
+  const key = getUserTokenKey(username);
+  return getGlobal(key);
 }
 
 /**
  * 清除用户 token
  */
 export function clearUserToken(username: string): void {
-  userTokenMap.delete(username);
+  const key = getUserTokenKey(username);
+  removeGlobal(key);
 }
 
 // 扩展 AxiosRequestConfig 以支持自定义属性
@@ -124,9 +133,23 @@ adapundiInstance.interceptors.response.use(
   },
   async (error: AxiosError) => {
     const config = error.config as CustomAxiosRequestConfig;
-    
+    log.error(`adapundiInstance error: ${JSON.stringify(error)}`);
     // 处理 400 错误 - 尝试重新登录并重试
-    if (error.response?.status === 400 && config) {
+    if ((error.response?.status === 400 || error.response?.status === 401) && config) {
+      // 如果请求URL包含 ac/user/login，则不进行重试
+      const requestUrl = config.url || error.config?.url || '';
+      if (requestUrl.includes('ac/user/login')) {
+        // 直接返回错误，不进行重试
+        if (error.response) {
+          const data = error.response.data as { error?: string; code?: any };
+          if (data && data.error) {
+            return rejectHttpError(data.error, data.code);
+          }
+          return rejectHttpError('请求异常：' + error.request?.url + ' ' + error.response.statusText);
+        }
+        return rejectHttpError(error.message);
+      }
+      
       // 初始化重试计数
       if (!config._retryCount) {
         config._retryCount = 0;
@@ -139,6 +162,7 @@ adapundiInstance.interceptors.response.use(
         try {
           // 获取用户信息
           const username = config._username;
+          log.info(`current username: ${username}`);
           if (username) {
             const userInfo = getUserInfo(username);
             if (userInfo) {
@@ -147,6 +171,7 @@ adapundiInstance.interceptors.response.use(
               
               // 重新登录获取新 token
               const loginResponse = await login(userInfo, 'adapundi');
+              log.info(`loginResponse: ${JSON.stringify(loginResponse)}`);
               const newToken = loginResponse.accessToken;
               
               // 更新 token 映射
@@ -161,7 +186,7 @@ adapundiInstance.interceptors.response.use(
           }
         } catch (loginError) {
           // 登录失败，继续抛出原始错误
-          console.error('自动重新登录失败:', loginError);
+          log.error('自动重新登录失败:', loginError);
         }
       }
     }
@@ -219,8 +244,9 @@ authCenterInstance.interceptors.response.use(
 
 // 创建 writeCase 专用的 axios 实例（baseURL 从环境变量读取）
 const writeCaseBaseURL = process.env.WRITE_CASE_API_BASE_URL || '';
+log.info("writeCaseBaseURL : ", writeCaseBaseURL);
 if (!writeCaseBaseURL) {
-  console.warn('警告: WRITE_CASE_API_BASE_URL 环境变量未设置，writeCase 接口可能无法正常工作');
+  log.warn('警告: WRITE_CASE_API_BASE_URL 环境变量未设置，writeCase 接口可能无法正常工作');
 }
 
 const writeCaseInstance: AxiosInstance = axios.create({
@@ -233,7 +259,8 @@ const writeCaseInstance: AxiosInstance = axios.create({
 writeCaseInstance.interceptors.response.use(
   (response: AxiosResponse) => {
     let result = response.data;
-    if (!result.success) {
+    log.info(`writeCaseInstance response: ${JSON.stringify(result)}`);
+    if (result.code != 0) {
       return rejectHttpError(
         result.error || result.message || result.errorMessage || '请求异常！',
         500
@@ -242,6 +269,7 @@ writeCaseInstance.interceptors.response.use(
     return result.data;
   },
   (error: AxiosError) => {
+    log.error(`writeCaseInstance error: ${JSON.stringify(error)}`);
     if (error.response) {
       const data = error.response.data as { error?: string; code?: any };
       if (data && data.error) {

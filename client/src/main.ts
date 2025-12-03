@@ -1,4 +1,4 @@
-import { start } from "./kernel/app";
+import { startServer } from "./server/app";
 
-// 启动应用
-start();
+// 启动服务器
+startServer();

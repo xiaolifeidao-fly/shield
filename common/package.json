@@ -9,6 +9,7 @@
     "@daybrush/utils": "^1.13.0",
     "axios": "^1.6.8",
     "class-transformer": "^0.5.1",
+    "conf": "^15.0.2",
     "crypto": "^1.0.1",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",

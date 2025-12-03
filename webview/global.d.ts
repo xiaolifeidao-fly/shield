@@ -24,7 +24,7 @@ interface UserApi {
     addUser(userInfo: UserInfo): Promise<void>;
     updateUser(userInfo: UserInfo): Promise<void>;
     deleteUser(username: string): Promise<void>;
-    runUser(username: string): Promise<void>;
+    runUser(username: string, enableDeduplication?: boolean, enableResume?: boolean): Promise<void>;
 }
 
 interface SyncTimeConfig {

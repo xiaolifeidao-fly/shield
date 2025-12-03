@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Form, message } from 'antd';
-import { UserInfo, BusinessType } from './UserManagement.types';
+import { UserApi, UserInfo, BusinessType } from '@/api';
 import UserSearchBar from './UserSearchBar';
+import UserStats from './UserStats';
 import UserTable from './UserTable';
 import UserModal from './UserModal';
 
@@ -14,22 +15,20 @@ const UserManagement: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserInfo | null>(null);
   const [searchText, setSearchText] = useState<string>('');
-  const [selectedBusinessType, setSelectedBusinessType] = useState<BusinessType | undefined>(undefined);
+  const [selectedBusinessType, setSelectedBusinessType] = useState<BusinessType>('adapundi'); // 默认选择第一个
+  const [enableDeduplication, setEnableDeduplication] = useState<boolean>(true); // 默认选中
+  const [enableResume, setEnableResume] = useState<boolean>(false); // 默认不选中
   const [runningUsers, setRunningUsers] = useState<Set<string>>(new Set());
   const [form] = Form.useForm();
+  const userApi = new UserApi();
 
-  // Load users from Electron API
+  // Load users from HTTP API
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const userApi = (window as any).user;
-      if (userApi && userApi.getUserInfoList) {
-        const userList = await userApi.getUserInfoList();
-        setUsers(userList || []);
-        setFilteredUsers(userList || []);
-      } else {
-        message.warning('User API not initialized');
-      }
+      const userList = await userApi.getUserInfoList();
+      setUsers(userList || []);
+      setFilteredUsers(userList || []);
     } catch (error: any) {
       message.error('Failed to load user list: ' + error.message);
     } finally {
@@ -40,10 +39,10 @@ const UserManagement: React.FC = () => {
   useEffect(() => {
     loadUsers();
     
-    // Poll userList every 5 seconds
+    // Poll userList every 2 seconds
     const interval = setInterval(() => {
       loadUsers();
-    }, 5000);
+    }, 2000);
     
     return () => {
       clearInterval(interval);
@@ -93,18 +92,15 @@ const UserManagement: React.FC = () => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
-      const userApi = (window as any).user;
-      if (userApi) {
-        if (editingUser) {
-          await userApi.updateUser({ ...editingUser, ...values });
-          message.success('User updated successfully');
-        } else {
-          await userApi.addUser(values);
-          message.success('User added successfully');
-        }
-        closeModal();
-        loadUsers();
+      if (editingUser) {
+        await userApi.updateUser({ ...editingUser, ...values });
+        message.success('User updated successfully');
+      } else {
+        await userApi.addUser(values);
+        message.success('User added successfully');
       }
+      closeModal();
+      loadUsers();
     } catch (error: any) {
       message.error(error.message || 'Failed to save user');
     }
@@ -113,12 +109,9 @@ const UserManagement: React.FC = () => {
   // Delete user
   const handleDelete = async (username: string) => {
     try {
-      const userApi = (window as any).user;
-      if (userApi && userApi.deleteUser) {
-        await userApi.deleteUser(username);
-        message.success('User deleted successfully');
-        loadUsers();
-      }
+      await userApi.deleteUser(username);
+      message.success('User deleted successfully');
+      loadUsers();
     } catch (error: any) {
       message.error('Failed to delete user: ' + error.message);
     }
@@ -127,12 +120,9 @@ const UserManagement: React.FC = () => {
   // Run user sync
   const handleRun = async (username: string) => {
     try {
-      const userApi = (window as any).user;
-      if (userApi && userApi.runUser) {
-        setRunningUsers(prev => new Set(prev).add(username));
-        await userApi.runUser(username);
-        message.success(`User ${username} sync started successfully`);
-      }
+      setRunningUsers(prev => new Set(prev).add(username));
+      await userApi.runUser(username, enableDeduplication, enableResume);
+      message.success(`User ${username} sync started successfully`);
     } catch (error: any) {
       message.error('Failed to run user sync: ' + error.message);
     } finally {
@@ -147,11 +137,8 @@ const UserManagement: React.FC = () => {
   // Stop user sync
   const handleStop = async (username: string) => {
     try {
-      const userApi = (window as any).user;
-      if (userApi && userApi.stopUser) {
-        await userApi.stopUser(username);
-        message.success(`User ${username} sync stopped`);
-      }
+      await userApi.stopUser(username);
+      message.success(`User ${username} sync stopped`);
     } catch (error: any) {
       message.error('Failed to stop user sync: ' + error.message);
     }
@@ -163,10 +150,18 @@ const UserManagement: React.FC = () => {
       <UserSearchBar
         searchText={searchText}
         selectedBusinessType={selectedBusinessType}
+        enableDeduplication={enableDeduplication}
+        enableResume={enableResume}
         onSearchChange={setSearchText}
         onBusinessTypeChange={setSelectedBusinessType}
+        onDeduplicationChange={setEnableDeduplication}
+        onResumeChange={setEnableResume}
         onAddClick={() => openModal()}
         onRefresh={loadUsers}
+      />
+      <UserStats
+        users={filteredUsers}
+        businessType={selectedBusinessType}
       />
       <UserTable
         users={filteredUsers}
