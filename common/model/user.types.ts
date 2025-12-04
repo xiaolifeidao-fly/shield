@@ -1,4 +1,4 @@
-export type BusinessType = 'adapundi' | 'SINGA';
+export type BusinessType = 'adapundi' | 'SINGA' | 'KAT';
 
 /**
  * 同步统计数据结构
