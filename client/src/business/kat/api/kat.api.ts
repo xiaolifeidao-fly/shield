@@ -2,17 +2,22 @@ import { AxiosInstance } from 'axios';
 import { BaseBusinessApi } from '../../common/base.api';
 import { CasePageParams, CasePageResponse, CaseDetail, LoanPlan, CustomerInfo, Case } from '../../common/entities';
 import { UserInfo, BusinessType } from '@model/user.types';
-import { katInstance, writeCaseInstance, setCurrentUser, getCurrentUser } from './kat.axios';
+import { katInstance, setCurrentUser, getCurrentUser } from './kat.axios';
 import { getCasePage } from './case.api';
 import { getCaseDetail } from './case.api';
 import { getCustomerInfo } from './customer.api';
 import { getLoanPlan, getLoanDetail } from './loan.api';
 import log from '../../../utils/logger';
+import { writeCaseInstance } from '@src/business/adapundi/api/adapundi.axios';
 
 /**
  * KAT 业务 API 实现
  */
 export class KatBusinessApi extends BaseBusinessApi {
+  async decryptPhone?(params: any): Promise<string|undefined> {
+    return undefined;
+  }
+
   getAxiosInstance(): AxiosInstance {
     return katInstance;
   }
