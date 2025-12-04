@@ -30,6 +30,7 @@ export async function login(userInfo: UserInfo): Promise<LoginResponse> {
       headers: headers
     }
   );
+  log.info('login response', response.data);
   return response.data as LoginResponse;
 }
 
