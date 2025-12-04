@@ -9,7 +9,7 @@ import UserManagement from './components/UserManagement';
 
 const { Content } = Layout;
 
-type BusinessType = 'adapundi' | 'SINGA';
+type BusinessType = 'adapundi' | 'SINGA' | 'KAT';
 
 export default function Home() {
   const [activeTab] = useState<string>('user');
@@ -156,6 +156,7 @@ export default function Home() {
             >
               <Select.Option value="adapundi">Adapundi</Select.Option>
               <Select.Option value="SINGA">SIGINT</Select.Option>
+              <Select.Option value="KAT">KAT</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item
