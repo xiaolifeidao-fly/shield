@@ -47,6 +47,7 @@ const UserForm: React.FC<UserFormProps> = ({ form, editingUser }) => {
         <Select placeholder="Select business type">
           <Select.Option value="adapundi">Adapundi</Select.Option>
           <Select.Option value="SINGA">SIGINT</Select.Option>
+          <Select.Option value="KAT">KAT</Select.Option>
         </Select>
       </Form.Item>
       <Form.Item

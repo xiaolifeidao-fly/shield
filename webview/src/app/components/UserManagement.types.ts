@@ -1,4 +1,4 @@
-export type BusinessType = 'adapundi' | 'singa';
+export type BusinessType = 'adapundi' | 'singa' | 'KAT';
 
 /**
  * Sync statistics data structure
