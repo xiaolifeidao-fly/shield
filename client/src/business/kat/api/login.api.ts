@@ -16,7 +16,6 @@ export interface LoginResponse {
  */
 export async function login(userInfo: UserInfo): Promise<LoginResponse> {
   const headers = {
-    'Tenant' : 'PAID',
     'Origin' : 'http://collection.pendanaan.com',
     'Referer' : 'http://collection.pendanaan.com/'
   }
