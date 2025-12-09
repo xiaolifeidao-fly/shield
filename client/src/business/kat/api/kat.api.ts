@@ -69,7 +69,7 @@ export class KatBusinessApi extends BaseBusinessApi {
       }
     }
     
-    return [caseDetail];
+    return [];
   }
 
   async getCustomerInfo(product: string, caseItem: Case): Promise<CustomerInfo> {
