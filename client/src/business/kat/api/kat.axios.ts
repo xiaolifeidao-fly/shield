@@ -110,9 +110,6 @@ katInstance.interceptors.request.use(
       if (token) {
         config.headers['Authorization'] = token;
       }
-      config.headers['Origin'] = 'http://collection.pendanaan.com';
-      config.headers['Referer'] = 'http://collection.pendanaan.com/';
-      config.headers['Tenant'] = 'PAID';
       // 将 username 存储在配置中，供响应拦截器使用
       config._username = user.username;
     }

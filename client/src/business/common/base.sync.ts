@@ -289,29 +289,28 @@ export abstract class BaseCaseSyncService {
       }
       // log.info(`syncSingleCase caseItem: ${JSON.stringify(caseItem)}`);
       // 获取案例详情
-      const caseDetail = await this.businessApi.getCaseDetail(caseItem.product, caseItem);
-      // 获取还款计划
-      let loanPlan: LoanPlan[] = [];
-      try {
-        loanPlan = await this.businessApi.getLoanPlan(caseDetail.customerId);
-      } catch (error) {
-        log.warn(`Failed to get loan plan for customer ${caseDetail.customerId}:`, error);
+      const caseDetails = await this.businessApi.getCaseDetails(caseItem.product, caseItem);
+      for(const caseDetail of caseDetails){
+        // 获取还款计划
+        let loanPlan: LoanPlan[] = [];
+        try {
+          loanPlan = await this.businessApi.getLoanPlan(caseDetail.customerId);
+        } catch (error) {
+          log.warn(`Failed to get loan plan for customer ${caseDetail.customerId}:`, error);
+        }
+        // 解密手机号（如果业务支持）
+        await this.decryptPhoneNumbers(caseDetail, caseItem);
+        // 获取客户信息
+        let customerInfo: CustomerInfo;
+        try {
+          customerInfo = await this.businessApi.getCustomerInfo(caseItem.product, caseItem);
+        } catch (error) {
+          log.warn(`Failed to get customer info for customer ${caseDetail.customerId}:`, error);
+          throw new Error(`Failed to get customer info for customer ${caseDetail.customerId}`);
+        }
+        // 写入案例数据
+        await this.writeCase(caseDetail, loanPlan, customerInfo, businessType);
       }
-
-      // 解密手机号（如果业务支持）
-      await this.decryptPhoneNumbers(caseDetail, caseItem);
-
-      // 获取客户信息
-      let customerInfo: CustomerInfo;
-      try {
-        customerInfo = await this.businessApi.getCustomerInfo(caseItem.product, caseItem);
-      } catch (error) {
-        log.warn(`Failed to get customer info for customer ${caseDetail.customerId}:`, error);
-        throw new Error(`Failed to get customer info for customer ${caseDetail.customerId}`);
-      }
-
-      // 写入案例数据
-      await this.writeCase(caseDetail, loanPlan, customerInfo, businessType);
       // 如果启用去重，更新缓存
       if (enableDeduplication) {
         updateCache(cache, caseItem.caseId);
@@ -395,6 +394,7 @@ export abstract class BaseCaseSyncService {
   ): Promise<boolean> {
     stats.totalCount = totalNum;
     for (const caseItem of records) {
+      log.info(`syncPageCases start sync single case: ${JSON.stringify(caseItem)}`);
       if (getStopFlag(username)) {
         log.info(`syncPageCases stop flag is true, return true`);
         return true;
@@ -408,56 +408,18 @@ export abstract class BaseCaseSyncService {
     return false;
   }
 
-  /**
-   * 同步用户的案例列表
-   */
-  async syncUserCases(
-    userInfo: UserInfo,
-    params: { product?: string; enableDeduplication?: boolean; enableResume?: boolean; [key: string]: any } = {}
-  ): Promise<SyncStats> {
-    const username = userInfo.username;
-    setStopFlag(username, false);
-    
-    // 设置当前用户
-    this.businessApi.setCurrentUser(userInfo);
-    
-    const existingStats = getUserSyncStats(username);
-    const stats: SyncStats = {
-      ...existingStats,
-      totalCount: 0,
-      successCount: 0,
-      skipCount: 0,
-      failCount: 0,
-      incrementNum : 0,
-      running: true,
-      startTime: new Date().toISOString(),
-      duration: 0,
-      lastSyncTime: new Date().toISOString(),
-    };
-    
-    const businessType = userInfo.businessType;
-    if (!businessType) {
-      throw new Error(`User ${username} has no businessType`);
-    }
-    
-    const cache = getUserSyncCache(username, businessType);
-    const startTimeMs = Date.now();
-    const enableDeduplication = params.enableDeduplication !== undefined ? params.enableDeduplication : true;
-    const enableResume = params.enableResume !== undefined ? params.enableResume : false;
 
-    let pageNum: number;
-    if (enableResume) {
-      pageNum = getUserResumePageNum(username);
-      log.info(`Resume enabled, starting from page ${pageNum}`);
-    } else {
-      pageNum = 1;
-      clearUserResumePageNum(username);
-      log.info(`Resume disabled, starting from page 1`);
-    }
-    
-    const pageSize = 20;
-    try {
+  async syncPageData(userInfo: UserInfo, params: {[key: string]: any } = {}, stats: SyncStats, cache: SyncCache, enableDeduplication: boolean = true, enableResume: boolean = false){
+    const pageResponse = await this.syncUserCasesByParams(userInfo, params, stats, cache, enableDeduplication, enableResume);
+    return pageResponse;
+  }
+
+  async syncUserCasesByParams(userInfo: UserInfo, params: {[key: string]: any } = {}, stats: SyncStats, cache: SyncCache, enableDeduplication: boolean = true, enableResume: boolean = false){
+      let pageNum: number = 1;
+      const pageSize = 20;
       log.info(`saveUserSyncStats: ${JSON.stringify(stats)}`);
+      const username = userInfo.username;
+      const startTimeMs = Date.now();
       saveUserSyncStats(username, stats);
       
       while (true) {
@@ -522,6 +484,47 @@ export abstract class BaseCaseSyncService {
       }
 
       return stats;
+  }
+
+  /**
+   * 同步用户的案例列表
+   */
+  async syncUserCases(
+    userInfo: UserInfo,
+    params: {[key: string]: any } = {}
+  ): Promise<SyncStats> {
+    const username = userInfo.username;
+    setStopFlag(username, false);
+    
+    // 设置当前用户
+    this.businessApi.setCurrentUser(userInfo);
+    
+    const existingStats = getUserSyncStats(username);
+    const stats: SyncStats = {
+      ...existingStats,
+      totalCount: 0,
+      successCount: 0,
+      skipCount: 0,
+      failCount: 0,
+      incrementNum : 0,
+      running: true,
+      startTime: new Date().toISOString(),
+      duration: 0,
+      lastSyncTime: new Date().toISOString(),
+    };
+    
+    const businessType = userInfo.businessType;
+    if (!businessType) {
+      throw new Error(`User ${username} has no businessType`);
+    }
+    
+    const cache = getUserSyncCache(username, businessType);
+    const startTimeMs = Date.now();
+    const enableDeduplication = params.enableDeduplication !== undefined ? params.enableDeduplication : true;
+    const enableResume = params.enableResume !== undefined ? params.enableResume : false;
+
+    try {
+      return await this.syncPageData(userInfo, params, stats, cache, enableDeduplication, enableResume);
     } catch (error) {
       stats.running = false;
       stats.duration = Math.round((Date.now() - startTimeMs) / 1000);

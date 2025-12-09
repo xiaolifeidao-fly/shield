@@ -34,11 +34,11 @@ export class AdapundiBusinessApi extends BaseBusinessApi {
     return response as unknown as CasePageResponse<Case>;
   }
 
-  async getCaseDetail(product: string, caseItem : Case): Promise<CaseDetail> {
+  async getCaseDetails(product: string, caseItem : Case): Promise<CaseDetail[]> {
     const response = await adapundiInstance.get(
       `/hive-collection-admin/cases/${product}/${caseItem.id}/detail`
     );
-    return response as unknown as CaseDetail;
+    return [response as unknown as CaseDetail];
   }
 
   async getCustomerInfo(product: string, caseItem : Case): Promise<CustomerInfo> {

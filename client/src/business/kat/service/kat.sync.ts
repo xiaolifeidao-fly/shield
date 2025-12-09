@@ -1,8 +1,7 @@
 import { BaseCaseSyncService } from '../../common/base.sync';
 import { BaseBusinessApi } from '../../common/base.api';
-import { Case, CaseDetail, LoanPlan } from '../../common/entities';
-import { BusinessType, SyncStats } from '@model/user.types';
-import { getLoanPlan } from '../api/loan.api';
+import { Case, CaseDetail } from '../../common/entities';
+import { BusinessType, SyncStats, UserInfo } from '@model/user.types';
 import log from '../../../utils/logger';
 
 interface SyncCache {
@@ -21,6 +20,15 @@ export class KatCaseSyncService extends BaseCaseSyncService {
 
   async release(businessType: BusinessType, username: string): Promise<void> {
     // KAT 业务暂无特殊的释放逻辑
+  }
+
+  async syncPageData(userInfo: UserInfo, params: { [key: string]: any; }, stats: SyncStats, cache: SyncCache, enableDeduplication?: boolean, enableResume?: boolean): Promise<SyncStats> {
+    const types = ["new","never_followed","today_ptp","other"];
+    for(const type of types){
+      params['type'] = type;
+      stats = await super.syncUserCasesByParams(userInfo, params, stats, cache, enableDeduplication, enableResume);
+    }
+    return stats;
   }
 
   /**
@@ -61,33 +69,21 @@ export class KatCaseSyncService extends BaseCaseSyncService {
     try {
       // 设置固定的产品类型为 KAT
       const product = 'KAT';
-      
       // 获取案例详情
-      const caseDetail = await this.businessApi.getCaseDetail(product, caseItem);
-      
-      // 获取还款计划 - KAT 使用 caseId 而不是 customerId
-      let loanPlan: LoanPlan[] = [];
-      try {
-        loanPlan = await getLoanPlan(caseItem.caseId);
-      } catch (error) {
-        log.warn(`Failed to get loan plan for case ${caseItem.caseId}:`, error);
+      const caseDetails = await this.businessApi.getCaseDetails(product, caseItem);
+      for(const caseDetail of caseDetails){
+          // 获取客户信息
+        let customerInfo;
+        try {
+          customerInfo = await this.businessApi.getCustomerInfo(product, caseItem);
+        } catch (error) {
+          log.warn(`Failed to get customer info for case ${caseItem.caseId}:`, error);
+          throw new Error(`Failed to get customer info for case ${caseItem.caseId}`);
+        }
+        // 写入案例数据
+        await this.writeCase(caseDetail, [], customerInfo, businessType);
       }
 
-      // KAT 不需要解密手机号
-      // 手机号已经是明文
-
-      // 获取客户信息
-      let customerInfo;
-      try {
-        customerInfo = await this.businessApi.getCustomerInfo(product, caseItem);
-      } catch (error) {
-        log.warn(`Failed to get customer info for case ${caseItem.caseId}:`, error);
-        throw new Error(`Failed to get customer info for case ${caseItem.caseId}`);
-      }
-
-      // 写入案例数据
-      await this.writeCase(caseDetail, loanPlan, customerInfo, businessType);
-      
       // 如果启用去重，更新缓存
       if (enableDeduplication) {
         const { getGlobal, setGlobal } = await import('@src/utils/store/conf');
@@ -100,7 +96,6 @@ export class KatCaseSyncService extends BaseCaseSyncService {
 
       stats.successCount++;
       this.saveUserSyncStats(username, stats);
-
       return true;
     } catch (error) {
       log.error(`Failed to sync case ${caseItem.caseId}:`, error);

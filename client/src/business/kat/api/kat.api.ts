@@ -6,7 +6,7 @@ import { katInstance, setCurrentUser, getCurrentUser } from './kat.axios';
 import { getCasePage } from './case.api';
 import { getCaseDetail } from './case.api';
 import { getCustomerInfo } from './customer.api';
-import { getLoanPlan, getLoanDetail } from './loan.api';
+import { getLoanDetail } from './loan.api';
 import log from '../../../utils/logger';
 import { writeCaseInstance } from '@src/business/adapundi/api/adapundi.axios';
 
@@ -34,22 +34,36 @@ export class KatBusinessApi extends BaseBusinessApi {
     return await getCasePage(params);
   }
 
-  async getCaseDetail(product: string, caseItem: Case): Promise<CaseDetail> {
+  async getCaseDetails(product: string, caseItem: Case): Promise<CaseDetail[]> {
     const caseDetail = await getCaseDetail(product, caseItem.caseId);
     
     // 获取贷款详情并填充 loanAmount
     if (caseDetail) {
       try {
-        const loanDetail = await getLoanDetail(caseItem.caseId);
-        if (loanDetail) {
-          caseDetail.loanAmount = loanDetail.amount;
+        const loanDetails = await getLoanDetail(caseItem.caseId);
+        if (loanDetails.length == 1) {
+          caseDetail.loanAmount = parseFloat(loanDetails[0].remittance_amount || '0');
+          return [caseDetail];
         }
+        const newCaseDetails: CaseDetail[] = [];
+        for(const loanDetail of loanDetails){
+          const newCaseDetail = { ...caseDetail };
+          caseDetail.loanAmount = parseFloat(loanDetail.remittance_amount || '0');
+          caseDetail.dueDate = loanDetail.due_at || null;
+          caseDetail.overdueDay = loanDetail.overdue_days;
+          caseDetail.principleAmount = parseFloat(loanDetail.principal || '0');
+          caseDetail.interestAmount = parseFloat(loanDetail.interest || '0');
+          caseDetail.punishmentAmount = parseFloat(loanDetail.late_fee || '0');
+          caseDetail.amount = parseFloat(loanDetail.unpaid || '0');
+          newCaseDetails.push(newCaseDetail);
+        }
+        return newCaseDetails;
       } catch (error) {
         log.warn(`Failed to get loan detail for case ${caseItem.caseId}:`, error);
       }
     }
     
-    return caseDetail;
+    return [caseDetail];
   }
 
   async getCustomerInfo(product: string, caseItem: Case): Promise<CustomerInfo> {
@@ -76,7 +90,6 @@ export class KatBusinessApi extends BaseBusinessApi {
       loanPlan: loanPlan,
       loanSource: businessType || null
     };
-    log.info('writeCase requestData', requestData);
     await writeCaseInstance.post("/loan/import/external/sync", requestData);
   }
 }

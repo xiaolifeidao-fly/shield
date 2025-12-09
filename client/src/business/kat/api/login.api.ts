@@ -16,6 +16,7 @@ export interface LoginResponse {
  */
 export async function login(userInfo: UserInfo): Promise<LoginResponse> {
   const headers = {
+    'Tenant' : 'PAID',
     'Origin' : 'http://collection.pendanaan.com',
     'Referer' : 'http://collection.pendanaan.com/'
   }
@@ -29,7 +30,6 @@ export async function login(userInfo: UserInfo): Promise<LoginResponse> {
       headers: headers
     }
   );
-  log.info('login response', response.data);
   return response.data as LoginResponse;
 }
 
