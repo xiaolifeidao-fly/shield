@@ -26,105 +26,14 @@ export class KatCaseSyncService extends BaseCaseSyncService {
     const types = ["new","never_followed","today_ptp","other"];
     for(const type of types){
       params['type'] = type;
+      log.info(`syncPageData type: ${type} params: ${JSON.stringify(params)}`);
+      const startTime = Date.now();
       stats = await super.syncUserCasesByParams(userInfo, params, stats, cache, enableDeduplication, enableResume);
+      log.info(`syncPageData type: ${type} cost: ${Date.now() - startTime}ms`);
     }
     return stats;
   }
 
-  /**
-   * 重写同步单个案例方法，因为 KAT 的 API 结构与 adapundi 不同
-   */
-  protected async syncSingleCase(
-    username: string,
-    caseItem: Case,
-    cache: SyncCache,
-    stats: SyncStats,
-    enableDeduplication: boolean = true,
-  ): Promise<boolean> {
-    // 获取用户的 businessType
-    const userInfo = this.businessApi.getCurrentUser();
-    const businessType = userInfo?.businessType;
-    
-    if (!businessType) {
-      log.error(`Failed to get businessType for user ${username}`);
-      stats.failCount++;
-      return false;
-    }
-
-    // 去重检查
-    if (enableDeduplication) {
-      const { getGlobal, setGlobal } = await import('@src/utils/store/conf');
-      const cacheKey = `sync_cache_${username}_${businessType}`;
-      const existingCache = getGlobal(cacheKey) || {};
-      const today = this.getTodayString();
-      
-      if (existingCache[caseItem.caseId] === today) {
-        log.info(`syncSingleCase skip case: ${caseItem.caseId} because it has been synced today`);
-        stats.skipCount++;
-        this.saveUserSyncStats(username, stats);
-        return false;
-      }
-    }
-
-    try {
-      // 设置固定的产品类型为 KAT
-      const product = 'KAT';
-      // 获取案例详情
-      const caseDetails = await this.businessApi.getCaseDetails(product, caseItem);
-      for(const caseDetail of caseDetails){
-          // 获取客户信息
-        let customerInfo;
-        try {
-          customerInfo = await this.businessApi.getCustomerInfo(product, caseItem);
-        } catch (error) {
-          log.warn(`Failed to get customer info for case ${caseItem.caseId}:`, error);
-          throw new Error(`Failed to get customer info for case ${caseItem.caseId}`);
-        }
-        // 写入案例数据
-        await this.writeCase(caseDetail, [], customerInfo, businessType);
-      }
-
-      // 如果启用去重，更新缓存
-      if (enableDeduplication) {
-        const { getGlobal, setGlobal } = await import('@src/utils/store/conf');
-        const cacheKey = `sync_cache_${username}_${businessType}`;
-        const existingCache = getGlobal(cacheKey) || {};
-        const today = this.getTodayString();
-        existingCache[caseItem.caseId] = today;
-        setGlobal(cacheKey, existingCache);
-      }
-
-      stats.successCount++;
-      this.saveUserSyncStats(username, stats);
-      return true;
-    } catch (error) {
-      log.error(`Failed to sync case ${caseItem.caseId}:`, error);
-      stats.failCount++;
-      this.saveUserSyncStats(username, stats);
-      return false;
-    }
-  }
-
-  /**
-   * 获取今天的日期字符串 (YYYY-MM-DD)
-   */
-  private getTodayString(): string {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  /**
-   * 保存用户的同步统计
-   */
-  private saveUserSyncStats(username: string, stats: SyncStats): void {
-    const { getGlobal, setGlobal } = require('@src/utils/store/conf');
-    const statsKey = `sync_stats_${username}`;
-    const { running, ...statsToSave } = stats;
-    setGlobal(statsKey, statsToSave);
-  }
 
   /**
    * KAT 不需要解密手机号，重写为空实现
