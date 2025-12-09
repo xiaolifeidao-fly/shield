@@ -36,7 +36,7 @@ export abstract class BaseBusinessApi<TCase extends Case = Case> {
    * @param caseItem 案件对象
    * @returns 案件详情数据
    */
-  abstract getCaseDetail(product: string, caseItem: TCase): Promise<CaseDetail>;
+  abstract getCaseDetails(product: string, caseItem: TCase): Promise<CaseDetail[]>;
 
   /**
    * 获取客户信息

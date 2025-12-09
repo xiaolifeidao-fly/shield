@@ -193,7 +193,7 @@ export async function getCasePage(params: CasePageParams = {}): Promise<CasePage
   
   // 构建 KAT API 的请求参数
   const requestData = {
-    type: "never_followed",
+    type: params.type,
     order: "",
     page: pageNum,
     page_size: pageSize,

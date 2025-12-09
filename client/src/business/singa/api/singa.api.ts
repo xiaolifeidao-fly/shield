@@ -283,7 +283,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
     }
   }
 
-  async getCaseDetail(product: string, caseItem : SingaCase): Promise<CaseDetail> {
+  async getCaseDetails(product: string, caseItem : SingaCase): Promise<CaseDetail[]> {
     // 将 SingaCase 转换为 CaseDetail
     const caseDetail: CaseDetail = {
       id: caseItem.id,
@@ -348,7 +348,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
     } catch (error) {
       log.warn(`Singa 案件详情补充贷款数据失败 caseId=${caseDetail.caseId}`, error);
     }
-    return caseDetail;
+    return [caseDetail];
   } 
 
   getAxiosInstance(): AxiosInstance | null {
