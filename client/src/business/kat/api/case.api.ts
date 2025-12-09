@@ -185,6 +185,7 @@ function mapKatCaseDetailToCaseDetail(katDetail: KatCaseDetailResponse): CaseDet
     loanTime: null,
     bankCode: null,
     accountNumber: null,
+    productName: katDetail.app_name || null,
   };
 }
 

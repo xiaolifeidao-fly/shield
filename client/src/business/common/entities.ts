@@ -141,6 +141,7 @@ export interface CaseDetail {
   loanTime : string | null;
   bankCode : string | null;
   accountNumber : string | null;
+  productName : string | null;
 }
 
 /**

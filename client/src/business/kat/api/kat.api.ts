@@ -49,6 +49,7 @@ export class KatBusinessApi extends BaseBusinessApi {
           caseDetail.bankCode = loanDetail.bank_code || null;
           caseDetail.accountNumber = loanDetail.account_number || null;
           caseDetail.principleAmount = parseFloat(loanDetail.principal || '0');
+          caseDetail.paidAmount = parseFloat(loanDetail.repaid || '0');
           return [caseDetail];
         }
         const newCaseDetails: CaseDetail[] = [];
@@ -66,6 +67,7 @@ export class KatBusinessApi extends BaseBusinessApi {
           newCaseDetail.loanTime = loanDetail.apply_time || null;
           newCaseDetail.bankCode = loanDetail.bank_code || null;
           newCaseDetail.accountNumber = loanDetail.account_number || null;
+          caseDetail.paidAmount = parseFloat(loanDetail.repaid || '0');
           newCaseDetails.push(newCaseDetail);
         }
         return newCaseDetails;

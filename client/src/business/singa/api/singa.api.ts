@@ -342,6 +342,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
       loanTime: null,
       bankCode: null,
       accountNumber: null,
+      productName: null,
     };
     try {
       const loanDetail = await this.getLoanDetail(caseDetail.caseId);
