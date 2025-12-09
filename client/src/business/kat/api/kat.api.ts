@@ -52,15 +52,15 @@ export class KatBusinessApi extends BaseBusinessApi {
         const newCaseDetails: CaseDetail[] = [];
         for(const loanDetail of loanDetails){
           const newCaseDetail = { ...caseDetail };
-          caseDetail.loanAmount = parseFloat(loanDetail.remittance_amount || '0');
-          caseDetail.dueDate = loanDetail.due_at || null;
-          caseDetail.caseId = loanDetail.lid || '';
-          caseDetail.id = parseInt(loanDetail.lid || '0');
-          caseDetail.overdueDay = loanDetail.overdue_days;
-          caseDetail.principleAmount = parseFloat(loanDetail.principal || '0');
-          caseDetail.interestAmount = parseFloat(loanDetail.interest || '0');
-          caseDetail.punishmentAmount = parseFloat(loanDetail.late_fee || '0');
-          caseDetail.amount = parseFloat(loanDetail.unpaid || '0');
+          newCaseDetail.loanAmount = parseFloat(loanDetail.remittance_amount || '0');
+          newCaseDetail.dueDate = loanDetail.due_at || null;
+          newCaseDetail.caseId = loanDetail.lid || '';
+          newCaseDetail.id = parseInt(loanDetail.lid || '0');
+          newCaseDetail.overdueDay = loanDetail.overdue_days;
+          newCaseDetail.principleAmount = parseFloat(loanDetail.principal || '0');
+          newCaseDetail.interestAmount = parseFloat(loanDetail.interest || '0');
+          newCaseDetail.punishmentAmount = parseFloat(loanDetail.late_fee || '0');
+          newCaseDetail.amount = parseFloat(loanDetail.unpaid || '0');
           newCaseDetails.push(newCaseDetail);
         }
         return newCaseDetails;
