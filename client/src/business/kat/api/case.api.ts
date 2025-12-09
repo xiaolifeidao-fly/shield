@@ -141,7 +141,7 @@ function mapKatCaseDetailToCaseDetail(katDetail: KatCaseDetailResponse): CaseDet
     level: katDetail.cycle_name || null,
     fullName: katDetail.customer_name,
     mobile: katDetail.mobile_no,
-    customerId: parseInt(katDetail.uid) || 0,
+    customerId: Number(katDetail.uid) || 0,
     overdueDay: katDetail.overdue_days,
     reviewerId: null,
     reviewerName: katDetail.collector || null,

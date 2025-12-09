@@ -12,7 +12,7 @@ export type { CustomerInfo };
 function mapKatDetailToCustomerInfo(katDetail: any): CustomerInfo {
   return {
     fullName: katDetail.customer_name || katDetail.user_name || '',
-    customerId: parseInt(katDetail.uid) || 0,
+    customerId: Number(katDetail.uid) || 0,
     mobile: katDetail.mobile_no || katDetail.reg_number || '',
     credentialNo: '',
     gender: katDetail.gender || '',
