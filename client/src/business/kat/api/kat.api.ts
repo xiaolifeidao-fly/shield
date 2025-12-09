@@ -51,7 +51,8 @@ export class KatBusinessApi extends BaseBusinessApi {
         }
         const newCaseDetails: CaseDetail[] = [];
         for(const loanDetail of loanDetails){
-          const newCaseDetail = { ...caseDetail };
+          // copy 数据到新的 CaseDetail 对象
+          const newCaseDetail: CaseDetail = JSON.parse(JSON.stringify(caseDetail));
           newCaseDetail.loanAmount = parseFloat(loanDetail.remittance_amount || '0');
           newCaseDetail.dueDate = loanDetail.due_at || null;
           newCaseDetail.caseId = loanDetail.lid || '';
