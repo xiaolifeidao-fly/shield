@@ -44,7 +44,7 @@ export class KatBusinessApi extends BaseBusinessApi {
         if (loanDetails.length == 1) {
           const loanDetail = loanDetails[0];
           caseDetail.loanAmount = parseFloat(loanDetail.remittance_amount || '0');
-          caseDetail.id = parseInt(loanDetail.lid || '0');
+          caseDetail.id = loanDetail.lid || '';
           caseDetail.principleAmount = parseFloat(loanDetail.principal || '0');
           return [caseDetail];
         }
@@ -54,7 +54,7 @@ export class KatBusinessApi extends BaseBusinessApi {
           const newCaseDetail: CaseDetail = JSON.parse(JSON.stringify(caseDetail));
           newCaseDetail.loanAmount = parseFloat(loanDetail.remittance_amount || '0');
           newCaseDetail.dueDate = loanDetail.due_at || null;
-          newCaseDetail.id = parseInt(loanDetail.lid || '0');
+          newCaseDetail.id = loanDetail.lid || '';
           newCaseDetail.overdueDay = loanDetail.overdue_days;
           newCaseDetail.principleAmount = parseFloat(loanDetail.principal || '0');
           newCaseDetail.interestAmount = parseFloat(loanDetail.interest || '0');

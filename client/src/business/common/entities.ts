@@ -92,7 +92,7 @@ export interface CasePageResponse<TCase extends Case = Case> {
  * 案件详情接口
  */
 export interface CaseDetail {
-  id: number;
+  id: string;
   caseId: string;
   trigger: string | null;
   level: string | null;
