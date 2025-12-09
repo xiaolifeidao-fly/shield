@@ -286,7 +286,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
   async getCaseDetails(product: string, caseItem : SingaCase): Promise<CaseDetail[]> {
     // 将 SingaCase 转换为 CaseDetail
     const caseDetail: CaseDetail = {
-      id: caseItem.id,
+      id: caseItem.id.toString(),
       caseId: caseItem.caseId || '',
       trigger: caseItem.trigger || null,
       level: caseItem.level || caseItem.collectionLevel || null,

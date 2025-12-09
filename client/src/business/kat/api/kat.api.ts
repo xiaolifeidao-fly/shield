@@ -42,19 +42,24 @@ export class KatBusinessApi extends BaseBusinessApi {
       try {
         const loanDetails = await getLoanDetail(caseItem.caseId);
         if (loanDetails.length == 1) {
-          caseDetail.loanAmount = parseFloat(loanDetails[0].remittance_amount || '0');
+          const loanDetail = loanDetails[0];
+          caseDetail.loanAmount = parseFloat(loanDetail.remittance_amount || '0');
+          caseDetail.id = loanDetail.lid || '';
+          caseDetail.principleAmount = parseFloat(loanDetail.principal || '0');
           return [caseDetail];
         }
         const newCaseDetails: CaseDetail[] = [];
         for(const loanDetail of loanDetails){
-          const newCaseDetail = { ...caseDetail };
-          caseDetail.loanAmount = parseFloat(loanDetail.remittance_amount || '0');
-          caseDetail.dueDate = loanDetail.due_at || null;
-          caseDetail.overdueDay = loanDetail.overdue_days;
-          caseDetail.principleAmount = parseFloat(loanDetail.principal || '0');
-          caseDetail.interestAmount = parseFloat(loanDetail.interest || '0');
-          caseDetail.punishmentAmount = parseFloat(loanDetail.late_fee || '0');
-          caseDetail.amount = parseFloat(loanDetail.unpaid || '0');
+          // copy 数据到新的 CaseDetail 对象
+          const newCaseDetail: CaseDetail = JSON.parse(JSON.stringify(caseDetail));
+          newCaseDetail.loanAmount = parseFloat(loanDetail.remittance_amount || '0');
+          newCaseDetail.dueDate = loanDetail.due_at || null;
+          newCaseDetail.id = loanDetail.lid || '';
+          newCaseDetail.overdueDay = loanDetail.overdue_days;
+          newCaseDetail.principleAmount = parseFloat(loanDetail.principal || '0');
+          newCaseDetail.interestAmount = parseFloat(loanDetail.interest || '0');
+          newCaseDetail.punishmentAmount = parseFloat(loanDetail.late_fee || '0');
+          newCaseDetail.amount = parseFloat(loanDetail.unpaid || '0');
           newCaseDetails.push(newCaseDetail);
         }
         return newCaseDetails;
@@ -63,7 +68,7 @@ export class KatBusinessApi extends BaseBusinessApi {
       }
     }
     
-    return [caseDetail];
+    return [];
   }
 
   async getCustomerInfo(product: string, caseItem: Case): Promise<CustomerInfo> {
@@ -88,8 +93,9 @@ export class KatBusinessApi extends BaseBusinessApi {
       caseDetail: caseDetail,
       customerInfo: customerInfo,
       loanPlan: loanPlan,
-      loanSource: businessType || null
+      loanSource: "Pendanaan"
     };
+    log.info(`writeCase requestData: ${JSON.stringify(requestData)}`);
     await writeCaseInstance.post("/loan/import/external/sync", requestData);
   }
 }
