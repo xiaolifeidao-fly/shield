@@ -135,7 +135,7 @@ function mapKatCaseToCase(katCase: any): Case {
  */
 function mapKatCaseDetailToCaseDetail(katDetail: KatCaseDetailResponse): CaseDetail {
   return {
-    id: parseInt(katDetail.cid) || 0,
+    id: katDetail.cid,
     caseId: katDetail.cid,
     trigger: null,
     level: katDetail.cycle_name || null,
