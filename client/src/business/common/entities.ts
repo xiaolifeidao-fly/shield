@@ -137,6 +137,10 @@ export interface CaseDetail {
   createTime: string;
   whatsUpNum : string | null;
   loanAmount : number | null;
+  paidAmount: number;
+  loanTime : string | null;
+  bankCode : string | null;
+  accountNumber : string | null;
 }
 
 /**
@@ -199,6 +203,21 @@ export interface CustomerInfo {
   birthday: string;
   /** KTP OCR 地址（脱敏） */
   ktpOcrAddress: string;
+
+  /** 公司名称 */
+  companyName: string | null;
+
+  /** 工作城市 */
+  workCity: string | null;
+
+  /** 办公地址 */
+  officeAddress: string | null;
+
+  /** 办公电话 */
+  officeNumber: string | null;
+  
+  /** 职业 */
+  job : string | null;
 }
 
 /**

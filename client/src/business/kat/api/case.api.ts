@@ -21,7 +21,7 @@ interface KatCasePageResponse {
 /**
  * KAT 案例详情响应
  */
-interface KatCaseDetailResponse {
+export interface KatCaseDetailResponse {
   app_name?: string;
   birthday?: string;
   cid: string;
@@ -41,7 +41,7 @@ interface KatCaseDetailResponse {
   industry?: number;
   job_email?: string;
   job_payroll_cycle?: number;
-  job_type?: number;
+  job_type?: string;
   label_name?: string | null;
   last_bombing_time?: string;
   late_fee: string;
@@ -69,6 +69,7 @@ interface KatCaseDetailResponse {
   user_name?: string;
   work_city?: string;
 }
+
 
 /**
  * 将 KAT 案例数据转换为通用 Case 格式
@@ -180,6 +181,10 @@ function mapKatCaseDetailToCaseDetail(katDetail: KatCaseDetailResponse): CaseDet
     createTime: '',
     whatsUpNum: null,
     loanAmount: null,
+    paidAmount: 0,
+    loanTime: null,
+    bankCode: null,
+    accountNumber: null,
   };
 }
 

@@ -123,6 +123,11 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
       credentialType: '',
       birthday: '',
       ktpOcrAddress: '',
+      companyName: null,
+      workCity: null,
+      officeAddress: null,
+      officeNumber: null,
+      job: null,
     };
     return Promise.resolve(customerInfo);
   }
@@ -333,6 +338,10 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
       createTime: caseItem.createTime || new Date().toISOString(),
       whatsUpNum: caseItem.waNumber || null,
       loanAmount: null,
+      paidAmount: 0,
+      loanTime: null,
+      bankCode: null,
+      accountNumber: null,
     };
     try {
       const loanDetail = await this.getLoanDetail(caseDetail.caseId);

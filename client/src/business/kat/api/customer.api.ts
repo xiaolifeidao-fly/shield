@@ -1,5 +1,6 @@
 import { katInstance } from "./kat.axios";
 import { CustomerInfo } from "../../common/entities";
+import { KatCaseDetailResponse } from "./case.api";
 
 /**
  * 导出公共实体类型（保持向后兼容）
@@ -9,7 +10,7 @@ export type { CustomerInfo };
 /**
  * 将 KAT 案例详情转换为 CustomerInfo 格式
  */
-function mapKatDetailToCustomerInfo(katDetail: any): CustomerInfo {
+function mapKatDetailToCustomerInfo(katDetail: KatCaseDetailResponse): CustomerInfo {
   return {
     fullName: katDetail.customer_name || katDetail.user_name || '',
     customerId: Number(katDetail.uid) || 0,
@@ -39,6 +40,11 @@ function mapKatDetailToCustomerInfo(katDetail: any): CustomerInfo {
     credentialType: '',
     birthday: katDetail.birthday || '',
     ktpOcrAddress: '',
+    companyName: katDetail.company_name || null,
+    workCity: katDetail.work_city || null,
+    officeAddress: katDetail.office_address || null,
+    officeNumber: katDetail.office_number || null,
+    job: katDetail.job_type || null,
   };
 }
 
@@ -50,6 +56,6 @@ function mapKatDetailToCustomerInfo(katDetail: any): CustomerInfo {
  */
 export async function getCustomerInfo(product: string, cid: string): Promise<CustomerInfo> {
   const response = await katInstance.get(`/api/detail?cid=${cid}`);
-  return mapKatDetailToCustomerInfo(response);
+  return mapKatDetailToCustomerInfo(response as unknown as KatCaseDetailResponse);
 }
 
