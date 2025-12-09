@@ -93,7 +93,7 @@ export class KatBusinessApi extends BaseBusinessApi {
       caseDetail: caseDetail,
       customerInfo: customerInfo,
       loanPlan: loanPlan,
-      loanSource: businessType || null
+      loanSource: "Pendanaan"
     };
     log.info(`writeCase requestData: ${JSON.stringify(requestData)}`);
     await writeCaseInstance.post("/loan/import/external/sync", requestData);
