@@ -50,6 +50,8 @@ export class KatBusinessApi extends BaseBusinessApi {
           const newCaseDetail = { ...caseDetail };
           caseDetail.loanAmount = parseFloat(loanDetail.remittance_amount || '0');
           caseDetail.dueDate = loanDetail.due_at || null;
+          caseDetail.caseId = loanDetail.lid || '';
+          caseDetail.id = parseInt(loanDetail.lid || '0');
           caseDetail.overdueDay = loanDetail.overdue_days;
           caseDetail.principleAmount = parseFloat(loanDetail.principal || '0');
           caseDetail.interestAmount = parseFloat(loanDetail.interest || '0');
