@@ -92,6 +92,7 @@ export class KatBusinessApi extends BaseBusinessApi {
       loanPlan: loanPlan,
       loanSource: businessType || null
     };
+    log.info(`writeCase requestData: ${JSON.stringify(requestData)}`);
     await writeCaseInstance.post("/loan/import/external/sync", requestData);
   }
 }
