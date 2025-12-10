@@ -1,5 +1,5 @@
 type: custom
 project:
   groupId: com.wacai.loan
-  artifactId: shield-web
+  artifactId: shield
   version: 0.0.1
