@@ -9,7 +9,7 @@ import { initPlatform } from '@src/engine/engine';
 import { ensureConfInitialized } from '@src/utils/store/conf';
 import log from '../utils/logger';
 
-dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({path: path.join(__dirname, '../config/.env')});
 
 /**
  * 创建 Express 应用

@@ -3,7 +3,8 @@ import { getGlobal, setGlobal, removeGlobal } from '@src/utils/store/conf';
 import { UserInfo } from '@model/user.types';
 import log from "../../../utils/logger";
 import * as dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+dotenv.config({path: path.join(__dirname, '../config/.env')});
 
 // 定义一个 HttpError 类，扩展自 Error
 class HttpError extends Error {

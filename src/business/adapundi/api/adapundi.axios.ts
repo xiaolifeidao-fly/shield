@@ -5,7 +5,7 @@ import log from "../../../utils/logger";
 import * as dotenv from 'dotenv';
 const path = require('path');
 // dotenv.config({path: path.join(__dirname, '.env')}); // 加载 .env 文件中的环境变量
-dotenv.config();
+dotenv.config({path: path.join(__dirname, '../config/.env')});
 
 // 定义一个 HttpError 类，扩展自 Error
 class HttpError extends Error {
