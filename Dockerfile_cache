@@ -1,0 +1,13 @@
+FROM node:22.6.0
+
+ARG APP_NAME=shield
+WORKDIR /app/program/shield
+RUN ls -rtl
+COPY node_modules node_modules
+
+# 安装 Playwright Chromium 浏览器依赖
+RUN npx playwright install-deps chromium
+
+# 安装 Playwright Chromium 浏览器
+RUN npx playwright install chromium
+
