@@ -1,4 +1,5 @@
 import { getGlobal, setGlobal } from '@src/utils/store/conf';
+import { listUsers } from '@src/utils/store/mysql-store';
 import { SyncStats, UserInfo, BusinessType } from '@model/user.types';
 import { Case, CaseDetail, LoanPlan, CustomerInfo, CasePageResponse } from './entities';
 import { BaseBusinessApi } from './base.api';
@@ -72,20 +73,19 @@ function saveUserSyncCache(username: string, businessType: BusinessType, cache: 
 /**
  * 清理指定 businessType 的所有用户的缓存
  */
-export function clearBusinessTypeCache(businessType: BusinessType): void {
-  const USER_LIST_KEY = "userList";
-  const userList = getGlobal(USER_LIST_KEY);
-  
-  if (!userList || !Array.isArray(userList)) {
+export async function clearBusinessTypeCache(businessType: BusinessType): Promise<void> {
+  const userList = await listUsers();
+
+  if (!userList || userList.length === 0) {
     log.info(`[clearBusinessTypeCache] No user list found`);
     return;
   }
-  
+
   // 过滤出该 businessType 的所有用户
   const businessUsers = userList.filter((u: UserInfo) => u.businessType === businessType);
-  
+
   log.info(`[clearBusinessTypeCache] Clearing cache for ${businessUsers.length} users of businessType: ${businessType}`);
-  
+
   // 清理每个用户的该 businessType 的缓存
   for (const user of businessUsers) {
     const cacheKey = `sync_cache_${user.username}_${businessType}`;
@@ -208,13 +208,12 @@ function saveUserSyncStats(username: string, stats: SyncStats): void {
 /**
  * 获取用户信息
  */
-function getUserInfo(username: string): UserInfo | null {
-  const USER_LIST_KEY = "userList";
-  const userList = getGlobal(USER_LIST_KEY);
-  if (!userList || !Array.isArray(userList)) {
+async function getUserInfo(username: string): Promise<UserInfo | null> {
+  const userList = await listUsers();
+  if (!userList || userList.length === 0) {
     return null;
   }
-  return userList.find((u: UserInfo) => u.username === username) || null;
+  return (userList as UserInfo[]).find((u: UserInfo) => u.username === username) || null;
 }
 
 /**
@@ -265,7 +264,7 @@ export abstract class BaseCaseSyncService {
     enableDeduplication: boolean = true,
   ): Promise<boolean> {
     // 获取用户的 businessType
-    const userInfo = getUserInfo(username);
+    const userInfo = await getUserInfo(username);
     const businessType = userInfo?.businessType;
     
     if (!businessType) {
@@ -569,4 +568,3 @@ export abstract class BaseCaseSyncService {
     setStopFlag(username, true);
   }
 }
-

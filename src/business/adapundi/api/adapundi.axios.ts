@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { getGlobal, setGlobal, removeGlobal } from '@src/utils/store/conf';
+import { listUsers } from '@src/utils/store/mysql-store';
 import { UserInfo } from '@model/user.types';
 import log from "../../../utils/logger";
 import * as dotenv from 'dotenv';
@@ -49,13 +50,12 @@ export function setCurrentUser(userInfo: UserInfo | null): void {
 /**
  * 获取用户信息
  */
-function getUserInfo(username: string): UserInfo | null {
-  const USER_LIST_KEY = "userList";
-  const userList = getGlobal(USER_LIST_KEY);
-  if (!userList || !Array.isArray(userList)) {
+async function getUserInfo(username: string): Promise<UserInfo | null> {
+  const userList = await listUsers();
+  if (!userList || userList.length === 0) {
     return null;
   }
-  return userList.find((u: UserInfo) => u.username === username) || null;
+  return (userList as UserInfo[]).find((u: UserInfo) => u.username === username) || null;
 }
 
 /**
@@ -164,7 +164,7 @@ adapundiInstance.interceptors.response.use(
           const username = config._username;
           log.info(`current username: ${username}`);
           if (username) {
-            const userInfo = getUserInfo(username);
+            const userInfo = await getUserInfo(username);
             if (userInfo) {
               // 动态导入 login 函数以避免循环依赖
               const { login } = await import('./login.api');
@@ -291,4 +291,3 @@ export {
   writeCaseInstance,
   HttpError,
 };
-

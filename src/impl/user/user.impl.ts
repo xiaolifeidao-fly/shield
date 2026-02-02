@@ -1,38 +1,35 @@
 import { UserApi } from "@api/user.api";
 import { UserInfo } from "@model/user.types";
-import { getGlobal, setGlobal } from "@src/utils/store/conf";
+import { deleteUserByUsername, getUserByUsername, insertUser, listUsers, updateUser } from "@src/utils/store/mysql-store";
 import { businessFactoryRegistry } from "@src/business";
 import log from "../../utils/logger";
-const USER_LIST_KEY = "userList";
 
 export class UserImpl extends UserApi {
 
     /**
      * 获取用户列表（从store中读取）
      */
-    private getUserList(): UserInfo[] {
-        const userList = getGlobal(USER_LIST_KEY);
-        return userList ? (Array.isArray(userList) ? userList : []) : [];
-    }
-
-    /**
-     * 保存用户列表（到store中）
-     */
-    private saveUserList(userList: UserInfo[]): void {
-        setGlobal(USER_LIST_KEY, userList);
+    private async getUserList(): Promise<UserInfo[]> {
+        const users = await listUsers();
+        return users.map(u => ({
+            id: u.id,
+            username: u.username,
+            password: u.password,
+            remark: u.remark || '',
+            businessType: u.businessType || undefined,
+        })) as UserInfo[];
     }
 
     async getUserInfo(username: string): Promise<UserInfo> {
-        const userList = this.getUserList();
-        const user = userList.find(u => u.username === username);
+        const user = await getUserByUsername(username);
         if (!user) {
             throw new Error(`用户 ${username} 不存在`);
         }
-        return user;
+        return user as UserInfo;
     }
 
     async getUserInfoList(): Promise<UserInfo[]> {
-        const userList = this.getUserList();
+        const userList = await this.getUserList();
         // 为每个用户填充 syncStats
         return userList.map(user => {
             try {
@@ -61,42 +58,54 @@ export class UserImpl extends UserApi {
     }
 
     async addUser(userInfo: UserInfo): Promise<void> {
-        const userList = this.getUserList();
-        // 检查用户名是否已存在
-        if (userList.some(u => u.username === userInfo.username)) {
+        const existing = await getUserByUsername(userInfo.username);
+        if (existing) {
             throw new Error(`用户名 ${userInfo.username} 已存在`);
         }
         // 如果没有 id，生成一个
         if (!userInfo.id) {
             userInfo.id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
         }
-        userList.push(userInfo);
-        this.saveUserList(userList);
+        await insertUser({
+            id: userInfo.id,
+            username: userInfo.username,
+            password: userInfo.password,
+            remark: userInfo.remark || '',
+            businessType: userInfo.businessType,
+        });
+        // 取消写入全局 KV 的 userList 快照
     }
 
     async updateUser(userInfo: UserInfo): Promise<void> {
-        const userList = this.getUserList();
-        const index = userList.findIndex(u => u.id === userInfo.id || u.username === userInfo.username);
-        if (index === -1) {
+        const existing = userInfo.username ? await getUserByUsername(userInfo.username) : null;
+        if (!existing && !userInfo.id) {
             throw new Error(`用户 ${userInfo.username} 不存在`);
         }
-        userList[index] = userInfo;
-        this.saveUserList(userList);
+        const userId = userInfo.id || existing?.id;
+        if (!userId) {
+            throw new Error(`用户 ${userInfo.username} 不存在`);
+        }
+        await updateUser({
+            id: userId,
+            username: userInfo.username,
+            password: userInfo.password,
+            remark: userInfo.remark || '',
+            businessType: userInfo.businessType,
+        });
+        // 取消写入全局 KV 的 userList 快照
     }
 
     async deleteUser(username: string): Promise<void> {
-        const userList = this.getUserList();
-        const index = userList.findIndex(u => u.username === username);
-        if (index === -1) {
+        const existing = await getUserByUsername(username);
+        if (!existing) {
             throw new Error(`用户 ${username} 不存在`);
         }
-        userList.splice(index, 1);
-        this.saveUserList(userList);
+        await deleteUserByUsername(username);
+        // 取消写入全局 KV 的 userList 快照
     }
 
     async runUser(username: string, enableDeduplication: boolean = true, enableResume: boolean = false): Promise<void> {
-        const userList = this.getUserList();
-        const user = userList.find(u => u.username === username);
+        const user = await getUserByUsername(username);
         if (!user) {
             throw new Error(`用户 ${username} 不存在`);
         }
@@ -127,12 +136,11 @@ export class UserImpl extends UserApi {
         
         // TODO: 可以在这里添加其他业务类型的特定参数
         
-        await syncService.syncUserCases(user, syncParams);
+        await syncService.syncUserCases(user as UserInfo, syncParams);
     }
 
     async stopUser(username: string): Promise<void> {
-        const userList = this.getUserList();
-        const user = userList.find(u => u.username === username);
+        const user = await getUserByUsername(username);
         if (!user) {
             throw new Error(`用户 ${username} 不存在`);
         }

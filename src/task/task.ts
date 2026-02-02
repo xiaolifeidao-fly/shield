@@ -156,7 +156,7 @@ class ScheduledTaskManager {
         try {
             // 清理该 businessType 的缓存数据
             log.info(`[ScheduledTaskManager] Clearing cache for business type: ${businessType}`);
-            clearBusinessTypeCache(businessType);
+            await clearBusinessTypeCache(businessType);
             
             // 获取该业务类型下的所有用户
             const allUsers = await this.userImpl.getUserInfoList();
@@ -246,4 +246,3 @@ export async function rescheduleScheduledTasks(): Promise<void> {
     const manager = getTaskManager();
     await manager.rescheduleAll();
 }
-

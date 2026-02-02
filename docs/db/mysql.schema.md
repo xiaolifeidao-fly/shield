@@ -1,0 +1,32 @@
+# MySQL 表结构（持久化存储）
+
+## 1) 全局配置与运行状态（KV）
+
+```sql
+CREATE TABLE IF NOT EXISTS shield_global_kv (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  instance_key VARCHAR(64) NOT NULL DEFAULT 'default',
+  config_key VARCHAR(191) NOT NULL,
+  config_value LONGTEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uniq_instance_key (instance_key, config_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+## 2) 用户数据
+
+```sql
+CREATE TABLE IF NOT EXISTS shield_users (
+  id VARCHAR(64) NOT NULL,
+  username VARCHAR(191) NOT NULL,
+  password VARCHAR(191) NOT NULL,
+  remark VARCHAR(255) NOT NULL DEFAULT '',
+  business_type VARCHAR(64) DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uniq_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```

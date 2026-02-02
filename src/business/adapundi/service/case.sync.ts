@@ -1,7 +1,7 @@
 import { SyncStats, UserInfo, BusinessType } from "@model/user.types";
 import { businessFactoryRegistry } from "../../common/factory";
 import { BaseBusinessApi } from "../../common/base.api";
-import { getGlobal } from "../../../utils/store/conf";
+import { listUsers } from '@src/utils/store/mysql-store';
 import log from "../../../utils/logger";
 
 /**
@@ -37,11 +37,10 @@ export async function syncUserCases(
  * 获取用户的同步统计（通用适配器）
  * 注意：此方法需要从用户信息中获取 businessType
  */
-export function getUserSyncStatsInfo(username: string): SyncStats {
-  // 从 store 中获取用户信息以确定 businessType
-  const USER_LIST_KEY = "userList";
-  const userList = getGlobal(USER_LIST_KEY);
-  if (!userList || !Array.isArray(userList)) {
+export async function getUserSyncStatsInfo(username: string): Promise<SyncStats> {
+  // 从数据库中获取用户信息以确定 businessType
+  const userList = await listUsers();
+  if (!userList || userList.length === 0) {
     throw new Error(`用户 ${username} 不存在`);
   }
   const userInfo = userList.find((u: UserInfo) => u.username === username);
@@ -58,11 +57,10 @@ export function getUserSyncStatsInfo(username: string): SyncStats {
  * 停止用户的同步任务（通用适配器）
  * 注意：此方法需要从用户信息中获取 businessType
  */
-export function stopUserSync(username: string): void {
-  // 从 store 中获取用户信息以确定 businessType
-  const USER_LIST_KEY = "userList";
-  const userList = getGlobal(USER_LIST_KEY);
-  if (!userList || !Array.isArray(userList)) {
+export async function stopUserSync(username: string): Promise<void> {
+  // 从数据库中获取用户信息以确定 businessType
+  const userList = await listUsers();
+  if (!userList || userList.length === 0) {
     throw new Error(`用户 ${username} 不存在`);
   }
   const userInfo = userList.find((u: UserInfo) => u.username === username);
@@ -94,10 +92,9 @@ export function getBusinessApi(businessType: BusinessType): BaseBusinessApi {
  * @param username 用户名
  * @returns 业务 API 实例
  */
-export function getBusinessApiByUsername(username: string): BaseBusinessApi {
-  const USER_LIST_KEY = "userList";
-  const userList = getGlobal(USER_LIST_KEY);
-  if (!userList || !Array.isArray(userList)) {
+export async function getBusinessApiByUsername(username: string): Promise<BaseBusinessApi> {
+  const userList = await listUsers();
+  if (!userList || userList.length === 0) {
     throw new Error(`用户 ${username} 不存在`);
   }
   const userInfo = userList.find((u: UserInfo) => u.username === username);
