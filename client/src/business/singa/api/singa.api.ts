@@ -9,6 +9,7 @@ import { getPage } from '@src/business/common/engine.manager';
 import { Page } from 'playwright-core';
 import { login as singaLogin } from './login.api';
 import { writeCase } from '@src/business/adapundi/api/writeCase.api';
+import { sleep } from '@utils/index';
 
 /**
  * Singa Case 接口，扩展自 Case
@@ -425,6 +426,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
       const username = user.username;
       // 解析表格数据
       // 注意：page.evaluate 中的代码在浏览器环境中执行
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const cases: any = await page.evaluate((username : string) => {
         // @ts-expect-error - document 在浏览器环境中存在
@@ -453,7 +455,6 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
           return null;
         };
         // DOM元素无法被JSON序列化,改为记录有用信息
-        
         rows.forEach((row: any, index: number) => {
           try {
             // 从 class 中提取 ID（如 "assign-60183905"）
@@ -490,7 +491,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
             // 2. PTP 状态
             let ptpStatus: string | null = null;
-            const ptpCell = cells[2] as any; // 第3列（索引2）
+            const ptpCell = cells[3] as any; // 第3列（索引2）
             if (ptpCell) {
               const ptpBadge = ptpCell.querySelector('.badge');
               if (ptpBadge) {
@@ -503,7 +504,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
             // 3. PRI 分数
             let priScore: number | null = null;
-            const priCell = cells[3] as any; // 第4列（索引3）
+            const priCell = cells[4] as any; // 第4列（索引3）
             if (priCell) {
               const priBadge = priCell.querySelector('.badge.bg-danger');
             if (priBadge) {
@@ -570,16 +571,13 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
             // 13. DPD - 逾期天数
             let overdueDay = 0;
-            const dpdCell = cells[13] as any; // 第14列（索引13）
+            const dpdCell = cells[14] as any; // 第14列（索引13）
             if (dpdCell) {
-              const textDangerEl = dpdCell.querySelector('.text-danger');
-              if (textDangerEl) {
-                const text = textDangerEl.textContent?.trim() || '';
+                const text = dpdCell.textContent?.trim() || '';
                 const num = parseInt(text, 10);
                 if (!isNaN(num) && num >= 0) {
                   overdueDay = num;
                 }
-              }
             }
 
             // 14. Bucket - 催收等级
@@ -597,7 +595,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
             
             // 按表格列顺序解析金额字段
             // 15. Penalty (索引15)
-            const penaltyCell = cells[15] as any;
+            const penaltyCell = cells[16] as any;
             if (penaltyCell && penaltyCell.textContent?.includes('Rp.')) {
               const text = penaltyCell.textContent?.trim() || '';
               const match = text.match(/Rp\.\s*([\d.]+)/);
@@ -608,7 +606,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
             }
             
             // 16. Current Due (索引16)
-            const currentDueCell = cells[16] as any;
+            const currentDueCell = cells[17] as any;
             if (currentDueCell && currentDueCell.textContent?.includes('Rp.')) {
               const text = currentDueCell.textContent?.trim() || '';
               const match = text.match(/Rp\.\s*([\d.]+)/);
@@ -619,7 +617,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
             }
             
             // 17. Total Due (索引17)
-            const totalDueCell = cells[17] as any;
+            const totalDueCell = cells[18] as any;
             if (totalDueCell && totalDueCell.textContent?.includes('Rp.')) {
               const text = totalDueCell.textContent?.trim() || '';
               const match = text.match(/Rp\.\s*([\d.]+)/);
@@ -630,7 +628,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
             }
             
             // 18. Repayment (索引18)
-            const repaymentCell = cells[18] as any;
+            const repaymentCell = cells[19] as any;
             if (repaymentCell && repaymentCell.textContent?.includes('Rp.')) {
               const text = repaymentCell.textContent?.trim() || '';
               const match = text.match(/Rp\.\s*([\d.]+)/);
@@ -641,7 +639,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
             }
             
             // 19. RWP (索引19)
-            const rwpCell = cells[19] as any;
+            const rwpCell = cells[20] as any;
             if (rwpCell && rwpCell.textContent?.includes('Rp.')) {
               const text = rwpCell.textContent?.trim() || '';
               const match = text.match(/Rp\.\s*([\d.]+)/);
@@ -652,7 +650,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
             }
             
             // 20. Remaining (索引20)
-            const remainingCell = cells[20] as any;
+            const remainingCell = cells[21] as any;
             if (remainingCell && remainingCell.textContent?.includes('Rp.')) {
               const text = remainingCell.textContent?.trim() || '';
               const match = text.match(/Rp\.\s*([\d.]+)/);
@@ -674,7 +672,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
             // 21. Sensitivity - 敏感度
             let sensitivity: string | null = null;
-            const sensitivityCell = cells[21] as any; // 第22列（索引21）
+            const sensitivityCell = cells[22] as any; // 第22列（索引21）
             if (sensitivityCell) {
               const sensitivityBadge = sensitivityCell.querySelector('.badge');
               if (sensitivityBadge) {
@@ -687,7 +685,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
             // 22. Borrower Type - 借款人类型
             let customerType: string | null = null;
-            const borrowerTypeCell = cells[22] as any; // 第23列（索引22）
+            const borrowerTypeCell = cells[23] as any; // 第23列（索引22）
             if (borrowerTypeCell) {
               const borrowerTypeBadge = borrowerTypeCell.querySelector('.badge');
               if (borrowerTypeBadge) {
@@ -700,7 +698,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
             // 23. WA Intention - WA 意向
             let waIntentionLevel: string | null = null;
-            const waIntentionCell = cells[23] as any; // 第24列（索引23）
+            const waIntentionCell = cells[24] as any; // 第24列（索引23）
             if (waIntentionCell) {
               const waIntentionBadge = waIntentionCell.querySelector('.badge');
               if (waIntentionBadge) {
@@ -723,7 +721,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
             // 25. Assigned By - 分配人
             let assignedBy: string | null = null;
-            const assignedByCell = cells[25] as any; // 第26列（索引25）
+            const assignedByCell = cells[26] as any; // 第26列（索引25）
             if (assignedByCell) {
               const assignedByText = assignedByCell.textContent?.trim() || '';
               // 排除日期格式和金额
@@ -734,7 +732,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
             // 26. Assigned At - 分配时间
             let assignedAt: string | null = null;
-            const assignedAtCell = cells[26] as any; // 第27列（索引26）
+            const assignedAtCell = cells[27] as any; // 第27列（索引26）
             if (assignedAtCell) {
               const assignedAtText = assignedAtCell.textContent?.trim() || '';
               if (assignedAtText && assignedAtText !== '-') {
@@ -744,7 +742,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
             // 27. Last Followed - 最后跟进时间
             let lastFollowedUpDate: string | null = null;
-            const lastFollowedCell = cells[27] as any; // 第28列（索引27）
+            const lastFollowedCell = cells[28] as any; // 第28列（索引27）
             if (lastFollowedCell) {
               const lastFollowedText = lastFollowedCell.textContent?.trim() || '';
               if (lastFollowedText && lastFollowedText !== '-') {
@@ -831,7 +829,6 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
               lastFollowedUpDate: lastFollowedUpDate,
             };
 
-            console.log(`第 ${index} 行: ✓ 成功解析, CaseID=${extractedCaseId}`, username);
             result.push(caseItem);
           } catch (error) {
             console.error(`第 ${index} 行: ✗ 解析失败`, error);
@@ -877,7 +874,6 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
         maxLimit: null,
         pages: pages,
       };
-
       return response;
     } catch (error) {
       log.error('getCasePage error:', error);
