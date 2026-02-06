@@ -16,6 +16,7 @@ export class UserImpl extends UserApi {
             username: u.username,
             password: u.password,
             remark: u.remark || '',
+            authCookie: u.authCookie,
             businessType: u.businessType || undefined,
         })) as UserInfo[];
     }
@@ -31,13 +32,14 @@ export class UserImpl extends UserApi {
     async getUserInfoList(): Promise<UserInfo[]> {
         const userList = await this.getUserList();
         // 为每个用户填充 syncStats
-        return userList.map(user => {
+        return await Promise.all(userList.map(async user => {
             try {
                 if (user.businessType && businessFactoryRegistry.hasBusinessType(user.businessType)) {
                     const syncService = businessFactoryRegistry.getSyncService(user.businessType);
+                    const syncStats = await Promise.resolve(syncService.getUserSyncStatsInfo(user.username) as any);
                     return {
                         ...user,
-                        syncStats: syncService.getUserSyncStatsInfo(user.username)
+                        syncStats,
                     };
                 }
             } catch (error) {
@@ -54,7 +56,7 @@ export class UserImpl extends UserApi {
                     running: false,
                 }
             };
-        });
+        }));
     }
 
     async addUser(userInfo: UserInfo): Promise<void> {
@@ -71,6 +73,7 @@ export class UserImpl extends UserApi {
             username: userInfo.username,
             password: userInfo.password,
             remark: userInfo.remark || '',
+            authCookie: userInfo.authCookie,
             businessType: userInfo.businessType,
         });
         // 取消写入全局 KV 的 userList 快照
@@ -90,6 +93,7 @@ export class UserImpl extends UserApi {
             username: userInfo.username,
             password: userInfo.password,
             remark: userInfo.remark || '',
+            authCookie: userInfo.authCookie,
             businessType: userInfo.businessType,
         });
         // 取消写入全局 KV 的 userList 快照

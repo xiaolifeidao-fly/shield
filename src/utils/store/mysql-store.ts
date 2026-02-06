@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS shield_users (
   username VARCHAR(191) NOT NULL,
   password VARCHAR(191) NOT NULL,
   remark VARCHAR(255) NOT NULL DEFAULT '',
+  auth_cookie TEXT DEFAULT NULL,
   business_type VARCHAR(64) DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -188,38 +189,39 @@ export function getDefaultInstanceKey(): string {
 }
 
 function normalizeBusinessType(value: string | null): BusinessType | undefined {
-  if (value === 'adapundi' || value === 'SINGA' || value === 'KAT') {
+  if (value === 'adapundi' || value === 'SINGA' || value === 'KAT' || value === 'KLIKKAMI') {
     return value;
   }
   return undefined;
 }
 
-export async function listUsers(): Promise<Array<{ id: string; username: string; password: string; remark: string; businessType?: BusinessType }>> {
+export async function listUsers(): Promise<Array<{ id: string; username: string; password: string; remark: string; businessType?: BusinessType; authCookie?: string }>> {
   const conn = await getPool().getConnection();
   try {
     const [rows] = await conn.query(
-      'SELECT id, username, password, remark, business_type FROM shield_users ORDER BY created_at ASC'
+      'SELECT id, username, password, remark, business_type, auth_cookie FROM shield_users ORDER BY created_at ASC'
     );
-    return (rows as Array<{ id: string; username: string; password: string; remark: string; business_type: string | null }>).map((r) => ({
+    return (rows as Array<{ id: string; username: string; password: string; remark: string; business_type: string | null; auth_cookie: string | null }>).map((r) => ({
       id: r.id,
       username: r.username,
       password: r.password,
       remark: r.remark ?? '',
       businessType: normalizeBusinessType(r.business_type),
+      authCookie: r.auth_cookie ?? undefined,
     }));
   } finally {
     conn.release();
   }
 }
 
-export async function getUserByUsername(username: string): Promise<{ id: string; username: string; password: string; remark: string; businessType?: BusinessType } | null> {
+export async function getUserByUsername(username: string): Promise<{ id: string; username: string; password: string; remark: string; businessType?: BusinessType; authCookie?: string } | null> {
   const conn = await getPool().getConnection();
   try {
     const [rows] = await conn.query(
-      'SELECT id, username, password, remark, business_type FROM shield_users WHERE username = ? LIMIT 1',
+      'SELECT id, username, password, remark, business_type, auth_cookie FROM shield_users WHERE username = ? LIMIT 1',
       [username]
     );
-    const list = rows as Array<{ id: string; username: string; password: string; remark: string; business_type: string | null }>;
+    const list = rows as Array<{ id: string; username: string; password: string; remark: string; business_type: string | null; auth_cookie: string | null }>;
     if (list.length === 0) {
       return null;
     }
@@ -230,30 +232,31 @@ export async function getUserByUsername(username: string): Promise<{ id: string;
       password: r.password,
       remark: r.remark ?? '',
       businessType: normalizeBusinessType(r.business_type),
+      authCookie: r.auth_cookie ?? undefined,
     };
   } finally {
     conn.release();
   }
 }
 
-export async function insertUser(user: { id: string; username: string; password: string; remark: string; businessType?: BusinessType }): Promise<void> {
+export async function insertUser(user: { id: string; username: string; password: string; remark: string; businessType?: BusinessType; authCookie?: string }): Promise<void> {
   const conn = await getPool().getConnection();
   try {
     await conn.query(
-      'INSERT INTO shield_users (id, username, password, remark, business_type) VALUES (?, ?, ?, ?, ?)',
-      [user.id, user.username, user.password, user.remark ?? '', user.businessType ?? null]
+      'INSERT INTO shield_users (id, username, password, remark, business_type, auth_cookie) VALUES (?, ?, ?, ?, ?, ?)',
+      [user.id, user.username, user.password, user.remark ?? '', user.businessType ?? null, user.authCookie ?? null]
     );
   } finally {
     conn.release();
   }
 }
 
-export async function updateUser(user: { id: string; username: string; password: string; remark: string; businessType?: BusinessType }): Promise<void> {
+export async function updateUser(user: { id: string; username: string; password: string; remark: string; businessType?: BusinessType; authCookie?: string }): Promise<void> {
   const conn = await getPool().getConnection();
   try {
     await conn.query(
-      'UPDATE shield_users SET username = ?, password = ?, remark = ?, business_type = ? WHERE id = ?',
-      [user.username, user.password, user.remark ?? '', user.businessType ?? null, user.id]
+      'UPDATE shield_users SET username = ?, password = ?, remark = ?, business_type = ?, auth_cookie = ? WHERE id = ?',
+      [user.username, user.password, user.remark ?? '', user.businessType ?? null, user.authCookie ?? null, user.id]
     );
   } finally {
     conn.release();
@@ -264,6 +267,15 @@ export async function deleteUserByUsername(username: string): Promise<void> {
   const conn = await getPool().getConnection();
   try {
     await conn.query('DELETE FROM shield_users WHERE username = ?', [username]);
+  } finally {
+    conn.release();
+  }
+}
+
+export async function updateUserAuthCookie(username: string, authCookie: string | null): Promise<void> {
+  const conn = await getPool().getConnection();
+  try {
+    await conn.query('UPDATE shield_users SET auth_cookie = ? WHERE username = ?', [authCookie, username]);
   } finally {
     conn.release();
   }

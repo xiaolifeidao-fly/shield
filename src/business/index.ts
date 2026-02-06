@@ -4,6 +4,7 @@
 import { registerAdapundiBusiness } from './adapundi/adapundi.register';
 import { registerSingaBusiness } from './singa/singa.register';
 import { registerKatBusiness } from './kat/kat.register';
+import { registerKlikKamiBusiness } from './klikkami/klikkami.register';
 
 /**
  * 初始化所有业务类型
@@ -13,6 +14,7 @@ export function initializeBusinesses(): void {
   registerAdapundiBusiness();
   registerSingaBusiness();
   registerKatBusiness();
+  registerKlikKamiBusiness();
 }
 
 // 导出业务工厂注册表
@@ -22,4 +24,3 @@ export { businessFactoryRegistry } from './common/factory';
 export * from './common/entities';
 export * from './common/base.api';
 export * from './common/base.sync';
-
