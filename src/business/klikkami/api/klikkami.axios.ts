@@ -49,6 +49,68 @@ function extractAdminToken(cookieValue: string | undefined): string | undefined 
   return match ? match[1] : undefined;
 }
 
+function parseCookieExpires(cookieValue: string | undefined): number | null {
+  if (!cookieValue) {
+    return null;
+  }
+  const match = /expires=([^;]+)/i.exec(cookieValue);
+  if (!match?.[1]) {
+    return null;
+  }
+  const expiresMs = Date.parse(match[1]);
+  return Number.isNaN(expiresMs) ? null : expiresMs;
+}
+
+function parseJwtExp(token: string | undefined): number | null {
+  if (!token) {
+    return null;
+  }
+  const parts = token.split('.');
+  if (parts.length < 2) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8')) as { exp?: number };
+    return payload?.exp ? payload.exp * 1000 : null;
+  } catch (err) {
+    log.warn(`[KlikKami] Failed to parse Admin-Token exp: ${err}`);
+    return null;
+  }
+}
+
+function buildAuthCookie(setCookie: string | undefined, token: string): string {
+  return setCookie ? `${setCookie}; Admin-Token=${token}` : `sidebarStatus=1; Admin-Token=${token}`;
+}
+
+export function isKlikKamiSessionExpired(authCookie?: string, now: number = Date.now()): boolean {
+  if (!authCookie) {
+    return true;
+  }
+  const cookieExpires = parseCookieExpires(authCookie);
+  const tokenExpires = parseJwtExp(extractAdminToken(authCookie));
+  const expiresAt = cookieExpires ?? tokenExpires;
+  if (!expiresAt) {
+    return false;
+  }
+  // 提前 60s 认为失效，避免边界请求失败
+  return now >= expiresAt - 60_000;
+}
+
+export async function ensureKlikKamiSession(user: UserInfo): Promise<UserInfo> {
+  if (!user) {
+    throw new Error('用户信息缺失');
+  }
+  if (!isKlikKamiSessionExpired(user.authCookie)) {
+    return user;
+  }
+  log.info(`[KlikKami] Session expired or missing, re-login for ${user.username}`);
+  const loginResp = await login(user);
+  const cookieValue = buildAuthCookie(loginResp.setCookie, loginResp.token);
+  const updatedUser = { ...user, authCookie: cookieValue };
+  await updateUserAuthCookie(user.username, cookieValue);
+  return updatedUser;
+}
+
 klikkamiInstance.interceptors.request.use(
   async (config: CustomAxiosRequestConfig) => {
     const user = getCurrentUser();

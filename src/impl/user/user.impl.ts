@@ -3,6 +3,7 @@ import { UserInfo } from "@model/user.types";
 import { deleteUserByUsername, getUserByUsername, insertUser, listUsers, updateUser } from "@src/utils/store/mysql-store";
 import { businessFactoryRegistry } from "@src/business";
 import log from "../../utils/logger";
+import { ensureKlikKamiSession } from "@src/business/klikkami/api/klikkami.axios";
 
 export class UserImpl extends UserApi {
 
@@ -124,7 +125,13 @@ export class UserImpl extends UserApi {
         }
 
         log.info(`runUser: ${JSON.stringify(user)} start sync, enableDeduplication: ${enableDeduplication}, enableResume: ${enableResume}`);
-        
+        let resolvedUser = user as UserInfo;
+
+        // KLIKKAMI 在同步前先检查登录态，失效则自动登录并刷新 Cookie
+        if (user.businessType === 'KLIKKAMI') {
+            resolvedUser = await ensureKlikKamiSession(user as UserInfo);
+        }
+
         const syncService = businessFactoryRegistry.getSyncService(user.businessType);
         
         // 构建同步参数（不同业务类型可能有不同的参数）
@@ -140,7 +147,7 @@ export class UserImpl extends UserApi {
         
         // TODO: 可以在这里添加其他业务类型的特定参数
         
-        await syncService.syncUserCases(user as UserInfo, syncParams);
+        await syncService.syncUserCases(resolvedUser as UserInfo, syncParams);
     }
 
     async stopUser(username: string): Promise<void> {

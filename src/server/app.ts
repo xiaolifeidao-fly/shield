@@ -2,6 +2,7 @@ import express, { Express, Request, Response, NextFunction, Router } from 'expre
 import cors from 'cors';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import * as fs from 'fs';
 import { registerApiRoutes } from './api';
 import { initializeBusinesses } from '@src/business';
 import { initializeScheduledTasks } from '@src/task/task';
@@ -9,7 +10,21 @@ import { initPlatform } from '@src/engine/engine';
 import { ensureConfInitialized } from '@src/utils/store/conf';
 import log from '../utils/logger';
 
-dotenv.config({path: path.join(__dirname, '../config/.env')});
+// 加载 .env 文件，支持 tsx 和编译后的代码
+// 优先使用 process.cwd()，因为 tsx 运行时 __dirname 可能不正确
+const envPathFromCwd = path.join(process.cwd(), 'config/.env');
+const envPathFromDirname = path.join(__dirname, '../config/.env');
+
+let envLoaded = false;
+if (fs.existsSync(envPathFromCwd)) {
+  const result = dotenv.config({ path: envPathFromCwd });
+  if (!result.error) {
+    envLoaded = true;
+  }
+}
+if (!envLoaded && fs.existsSync(envPathFromDirname)) {
+  dotenv.config({ path: envPathFromDirname });
+}
 
 /**
  * 创建 Express 应用

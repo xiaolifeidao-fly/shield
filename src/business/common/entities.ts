@@ -94,12 +94,20 @@ export interface CasePageResponse<TCase extends Case = Case> {
 export interface CaseDetail {
   id: string;
   caseId: string;
+  /** 订单号 */
+  orderNo?: string;
   trigger: string | null;
+  /** 邮箱 */
+  email?: string;
+  /** 身份证号 */
+  idNo?: string;
   level: string | null;
   fullName: string;
   mobile: string;
   customerId: number;
   overdueDay: number;
+  /** 期数 */
+  terms?: number;
   reviewerId: number | null;
   reviewerName: string | null;
   customerTag: string | null;
@@ -133,6 +141,12 @@ export interface CaseDetail {
   expireInterestAmount: number;
   expirePunishmentAmount: number;
   expireVatAmount: number;
+  /** 逾期罚息 */
+  penaltyInterest?: number;
+  /** 其他费用 */
+  otherFee?: number;
+  /** 逾期利息 */
+  overdueInterest?: number;
   backupMobile: string;
   createTime: string;
   whatsUpNum : string | null;
@@ -142,6 +156,8 @@ export interface CaseDetail {
   bankCode : string | null;
   accountNumber : string | null;
   productName : string | null;
+  /** 单位行业 */
+  officeIndustry?: string | null;
 }
 
 /**

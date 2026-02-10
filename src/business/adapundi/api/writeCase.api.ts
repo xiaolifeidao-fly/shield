@@ -34,5 +34,14 @@ export async function writeCase(
     loanPlan: loanPlan,
     loanSource: businessType || null
   };
-  await writeCaseInstance.post("/loan/import/external/sync", requestData);
+  // 如果 baseURL 已经包含完整路径，则直接使用 baseURL，否则追加路径
+  const baseURL = process.env.WRITE_CASE_API_BASE_URL || '';
+  const endpoint = baseURL.includes('/loan/import/external/sync') ? '' : '/loan/import/external/sync';
+  log.info(`[writeCase] Request URL: ${baseURL}${endpoint}, caseId: ${caseDetail.caseId}`);
+  try {
+    await writeCaseInstance.post(endpoint, requestData);
+  } catch (error: any) {
+    log.error(`[writeCase] Request failed, caseId: ${caseDetail.caseId}, error:`, error);
+    throw error;
+  }
 }

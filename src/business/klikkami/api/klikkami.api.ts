@@ -87,12 +87,47 @@ export interface KlikKamiDetailResponse {
   repayment: any[];
 }
 
+interface KlikKamiBaseInfoLabelValue {
+  label: string;
+  value: string;
+}
+
+interface KlikKamiBaseInfoResponse {
+  person?: KlikKamiBaseInfoLabelValue[];
+  company?: KlikKamiBaseInfoLabelValue[];
+  contact?: any[];
+  quick?: any;
+  modify?: any;
+  apuppt?: any[];
+  show_module?: any;
+  special_attention?: any[];
+  instalment?: any[];
+  audit?: any[];
+}
+
+type KlikKamiDetailOrder = KlikKamiDetailResponse['orders'][number];
+
 function normalizeCurrency(value: string | null | undefined): number {
   if (!value) {
     return 0;
   }
   const normalized = value.replace(/[^0-9.-]/g, '');
   return Number(normalized) || 0;
+}
+
+function getLabelValue(list: KlikKamiBaseInfoLabelValue[] | undefined, label: string): string | null {
+  if (!list?.length) {
+    return null;
+  }
+  const match = list.find((item) => item.label?.trim() === label);
+  return match?.value ?? null;
+}
+
+function sumPlanPaidAmount(planList: KlikKamiDetailOrder['plan'] | undefined): number {
+  if (!planList?.length) {
+    return 0;
+  }
+  return planList.reduce((sum, plan) => sum + normalizeCurrency(plan.repaid_val), 0);
 }
 
 function mapKlikKamiCaseToCase(item: KlikKamiCaseItem): Case & { __raw?: KlikKamiCaseItem } {
@@ -153,18 +188,34 @@ function mapKlikKamiCaseToCase(item: KlikKamiCaseItem): Case & { __raw?: KlikKam
   };
 }
 
-function mapKlikKamiDetailToCaseDetail(detail: KlikKamiDetailResponse, item: KlikKamiCaseItem | undefined, caseItem?: Case): CaseDetail {
+function mapKlikKamiDetailToCaseDetail(
+  detail: KlikKamiDetailResponse,
+  item: KlikKamiCaseItem | undefined,
+  caseItem?: Case,
+  order?: KlikKamiDetailOrder
+): CaseDetail {
   const work = detail.work;
-  const overdueDay = Number(item?.max_overdue_days) || caseItem?.overdueDay || 0;
+  const overdueDay = order ? Number(order.overdue_days) || 0 : Number(item?.max_overdue_days) || caseItem?.overdueDay || 0;
+  const orderLoanVal = order ? normalizeCurrency(order.loan_val) : normalizeCurrency(work?.total_amount);
+  const expireAmount = order ? normalizeCurrency(order.current_repay_amount) : normalizeCurrency(work?.total_amount);
+  const expirePrincipleAmount = order ? normalizeCurrency(order.current_instalment_amount) : normalizeCurrency(work?.total_amount);
+  const expirePunishmentAmount = order ? normalizeCurrency(order.penalty) : 0;
+  const paidAmount = order ? sumPlanPaidAmount(order.plan) : normalizeCurrency(work?.total_repaid_amount);
+  const terms = order?.plan?.length ?? 0;
+  const penaltyInterest = order ? normalizeCurrency(order.penalty) : 0;
   return {
-    id: item?.id || caseItem?.caseId || '',
-    caseId: item?.id || caseItem?.caseId || '',
+    id: order?.id || item?.id || caseItem?.caseId || '',
+    caseId: order?.order_no || item?.id || caseItem?.caseId || '',
+    orderNo: order?.order_no || undefined,
     trigger: null,
+    email: work?.email || item?.email || undefined,
+    idNo: work?.id_no || item?.id_no || undefined,
     level: item?.group_name || caseItem?.level || null,
     fullName: work?.name || item?.name || caseItem?.fullName || '',
     mobile: work?.phone || item?.phone || caseItem?.mobile || '',
     customerId: Number(item?.id || caseItem?.caseId || 0),
     overdueDay,
+    terms: terms > 0 ? terms : undefined,
     reviewerId: Number(item?.operator_id) || caseItem?.reviewerId || null,
     reviewerName: item?.operator_name || caseItem?.reviewerName || null,
     customerTag: null,
@@ -187,26 +238,30 @@ function mapKlikKamiDetailToCaseDetail(detail: KlikKamiDetailResponse, item: Kli
     tadpoleCount: '0',
     tadpoleAmount: '0',
     riskScoreAndLevel: null,
-    amount: normalizeCurrency(work?.total_amount),
-    principleAmount: normalizeCurrency(work?.total_amount),
+    amount: expireAmount,
+    principleAmount: orderLoanVal,
     interestAmount: 0,
     punishmentAmount: 0,
     vatAmount: 0,
     distributedDay: 0,
-    expireAmount: normalizeCurrency(work?.total_amount),
-    expirePrincipleAmount: normalizeCurrency(work?.total_amount),
+    expireAmount,
+    expirePrincipleAmount,
     expireInterestAmount: 0,
-    expirePunishmentAmount: 0,
+    expirePunishmentAmount,
     expireVatAmount: 0,
+    penaltyInterest: penaltyInterest || undefined,
+    otherFee: 0,
+    overdueInterest: 0,
     backupMobile: '',
-    createTime: item?.created_at || caseItem?.createTime || '',
+    createTime: order?.created_at || item?.created_at || caseItem?.createTime || '',
     whatsUpNum: null,
     loanAmount: null,
-    paidAmount: normalizeCurrency(work?.total_repaid_amount),
-    loanTime: item?.created_at || caseItem?.createTime || null,
+    paidAmount,
+    loanTime: order?.loan_starttime || item?.created_at || caseItem?.createTime || null,
     bankCode: null,
     accountNumber: null,
     productName: 'Klik Kami',
+    officeIndustry: '',
   };
 }
 
@@ -249,44 +304,45 @@ function mapKlikKamiDetailToCustomerInfo(detail: KlikKamiDetailResponse, item: K
   };
 }
 
-function mapKlikKamiDetailToLoanPlan(detail: KlikKamiDetailResponse): LoanPlan[] {
+function mapKlikKamiOrderToLoanPlan(order: KlikKamiDetailOrder): LoanPlan[] {
   const plans: LoanPlan[] = [];
-  const orders = detail.orders || [];
-  for (const order of orders) {
-    const planList = order.plan || [];
-    for (const plan of planList) {
-      plans.push({
-        id: Number(order.id) || 0,
-        loanType: order.loan_status || '',
-        status: plan.status || '',
-        loanSubType: order.lender || '',
-        amount: normalizeCurrency(order.loan_val),
-        interestRate: 0,
-        duration: order.loan_daycount || '',
-        period: Number(plan.term) || 0,
-        periodsNumber: Number(order.current_term) || 0,
-        periodUnit: 'day',
-        dueAmount: normalizeCurrency(plan.repay_amount),
-        minDueDate: plan.repay_end_time || null,
-        overdueDays: Number(plan.overdue_day) || 0,
-        gracePeriodRate: 0,
-        collectionLevel: null,
-        principalAmount: normalizeCurrency(order.loan_val),
-        interestAmount: 0,
-        defaultAmount: normalizeCurrency(plan.penalty),
-        vatAmount: 0,
-        shouldRepaymentAmount: normalizeCurrency(plan.repay_amount),
-        creditQuality: '',
-        platform: 'Klik Kami',
-        rolloverType: null,
-        esignFlag: false,
-      });
-    }
+  const planList = order.plan || [];
+  const terms = planList.length;
+  for (const plan of planList) {
+    plans.push({
+      id: Number(order.id) || 0,
+      loanType: order.loan_status || '',
+      status: plan.status || '',
+      loanSubType: order.lender || '',
+      amount: normalizeCurrency(order.loan_val),
+      interestRate: 0,
+      duration: order.loan_daycount || '',
+      period: Number(plan.term) || 0,
+      periodsNumber: terms,
+      periodUnit: 'day',
+      dueAmount: normalizeCurrency(plan.repay_amount),
+      minDueDate: plan.repay_end_time || null,
+      overdueDays: Number(plan.overdue_day) || 0,
+      gracePeriodRate: 0,
+      collectionLevel: null,
+      principalAmount: normalizeCurrency(order.loan_val),
+      interestAmount: 0,
+      defaultAmount: normalizeCurrency(plan.penalty),
+      vatAmount: 0,
+      shouldRepaymentAmount: normalizeCurrency(plan.repay_amount),
+      creditQuality: '',
+      platform: 'Klik Kami',
+      rolloverType: null,
+      esignFlag: false,
+    });
   }
   return plans;
 }
 
 export class KlikKamiBusinessApi extends BaseBusinessApi<Case> {
+  private pendingLoanPlansByWid = new Map<string, LoanPlan[][]>();
+  private pendingOrderNosByWid = new Map<string, string[]>();
+
   getAxiosInstance() {
     return klikkamiInstance;
   }
@@ -381,6 +437,16 @@ export class KlikKamiBusinessApi extends BaseBusinessApi<Case> {
       }));
       logger.info(`[KlikKami] detail orders wid=${wid} data=${JSON.stringify(orderLog)}`);
     }
+    const orders = detail.orders || [];
+    if (orders.length) {
+      const orderNos = orders.map((order) => order.order_no).filter(Boolean) as string[];
+      this.pendingOrderNosByWid.set(String(wid), [...orderNos]);
+      this.pendingLoanPlansByWid.set(
+        String(wid),
+        orders.map((order) => mapKlikKamiOrderToLoanPlan(order))
+      );
+      return orders.map((order) => mapKlikKamiDetailToCaseDetail(detail, raw, caseItem, order));
+    }
     return [mapKlikKamiDetailToCaseDetail(detail, raw, caseItem)];
   }
 
@@ -391,15 +457,42 @@ export class KlikKamiBusinessApi extends BaseBusinessApi<Case> {
       wid,
     });
     const detail = ret as unknown as KlikKamiDetailResponse;
-    return mapKlikKamiDetailToCustomerInfo(detail, raw, caseItem);
+    const customerInfo = mapKlikKamiDetailToCustomerInfo(detail, raw, caseItem);
+    const orderNos = this.pendingOrderNosByWid.get(String(wid));
+    const orderNoFromQueue = orderNos?.shift();
+    if (orderNos && orderNos.length === 0) {
+      this.pendingOrderNosByWid.delete(String(wid));
+    }
+    const orderNo = orderNoFromQueue || detail.orders?.[0]?.order_no;
+    if (orderNo) {
+      const baseInfo = await klikkamiInstance.post<KlikKamiBaseInfoResponse>('/indonesia_admin/detail/base_info', {
+        order_no: orderNo,
+      });
+      const companyInfo = baseInfo as unknown as KlikKamiBaseInfoResponse;
+      const companyList = companyInfo?.company || [];
+      customerInfo.companyName = getLabelValue(companyList, 'Nama Perusahaan');
+      customerInfo.officeNumber = getLabelValue(companyList, 'Telepon Perusahaan');
+      customerInfo.officeAddress = getLabelValue(companyList, 'Alamat Perusahaan');
+    }
+    return customerInfo;
   }
 
   async getLoanPlan(customerId: number): Promise<LoanPlan[]> {
+    const wid = String(customerId);
+    const queuedPlans = this.pendingLoanPlansByWid.get(wid);
+    if (queuedPlans?.length) {
+      const next = queuedPlans.shift() || [];
+      if (queuedPlans.length === 0) {
+        this.pendingLoanPlansByWid.delete(wid);
+      }
+      return next;
+    }
     const ret = await klikkamiInstance.post<KlikKamiDetailResponse>('/indonesia_admin/collection/collection_orders_v2', {
-      wid: String(customerId),
+      wid,
     });
     const detail = ret as unknown as KlikKamiDetailResponse;
-    return mapKlikKamiDetailToLoanPlan(detail);
+    const order = detail.orders?.[0];
+    return order ? mapKlikKamiOrderToLoanPlan(order) : [];
   }
 
   async decryptPhone(): Promise<string | undefined> {
@@ -412,8 +505,27 @@ export class KlikKamiBusinessApi extends BaseBusinessApi<Case> {
     customerInfo: CustomerInfo,
     businessType: BusinessType | undefined
   ): Promise<void> {
+    const logger = (await import('@src/utils/logger')).default;
+    logger.info(
+      `[KlikKami] writeCase wid=${caseDetail.customerId} caseId=${caseDetail.caseId} loanPlans=${loanPlan.length} customerId=${customerInfo.customerId}`
+    );
+    logger.info(
+      `[KlikKami] writeCase payload=${JSON.stringify({
+        caseDetail,
+        customerInfo,
+        loanPlan,
+        loanSource: businessType || null,
+      })}`
+    );
     const { writeCase } = await import('@src/business/adapundi/api/writeCase.api');
-    await writeCase(caseDetail, loanPlan, customerInfo, businessType);
+    try {
+      await writeCase(caseDetail, loanPlan, customerInfo, businessType);
+    } catch (error) {
+      logger.error(
+        `[KlikKami] writeCase failed wid=${caseDetail.customerId} caseId=${caseDetail.caseId} customerId=${customerInfo.customerId}`,
+        error
+      );
+    }
   }
 
   // 由 getLoanPlan 处理还款计划

@@ -271,17 +271,30 @@ writeCaseInstance.interceptors.response.use(
   (error: AxiosError) => {
     log.error(`writeCaseInstance error: ${JSON.stringify(error)}`);
     if (error.response) {
-      const data = error.response.data as { error?: string; code?: any };
+      const status = error.response.status;
+      const statusText = error.response.statusText;
+      const requestUrl = error.config?.url || error.request?.url || 'unknown';
+      const fullUrl = error.config?.baseURL ? `${error.config.baseURL}${requestUrl}` : requestUrl;
+      const data = error.response.data as { error?: string; code?: any; message?: string };
+      
+      log.error(`writeCaseInstance error details: status=${status}, statusText=${statusText}, url=${fullUrl}, responseData=${JSON.stringify(data)}`);
+      
       if (data && data.error) {
         return rejectHttpError(data.error, data.code);
       }
-      return rejectHttpError('请求异常：' + error.request?.url + ' ' + error.response.statusText);
+      if (data && data.message) {
+        return rejectHttpError(data.message, status);
+      }
+      return rejectHttpError(`请求异常：${fullUrl} ${status} ${statusText}`);
     }
 
     if (error.request) {
-      return rejectHttpError('请求异常：无返回结果');
+      const requestUrl = error.config?.url || error.request?.url || 'unknown';
+      const fullUrl = error.config?.baseURL ? `${error.config.baseURL}${requestUrl}` : requestUrl;
+      log.error(`writeCaseInstance request error: url=${fullUrl}, no response received`);
+      return rejectHttpError(`请求异常：无返回结果 (${fullUrl})`);
     }
-    return rejectHttpError(error.message);
+    return rejectHttpError(error.message || '未知错误');
   }
 );
 
