@@ -1,4 +1,4 @@
-import { writeCaseInstance } from "./adapundi.axios";
+import { writeCaseInstance, getCurrentUser } from "./adapundi.axios";
 import { CaseDetail, LoanPlan, CustomerInfo } from "../../common/entities";
 import { BusinessType } from "@model/user.types";
 import log from "../../../utils/logger";
@@ -27,9 +27,16 @@ export async function writeCase(
   customerInfo: CustomerInfo,
   businessType: BusinessType | undefined
 ): Promise<void> {
+  // reviewerName 强制使用当前登录账号
+  const currentUser = getCurrentUser();
+  const reviewerName = currentUser?.username || caseDetail.reviewerName || null;
+
   // 构建请求数据，与 caseDataWithLoanSource 结构一致
   const requestData: WriteCaseRequest = {
-    caseDetail: caseDetail,
+    caseDetail: {
+      ...caseDetail,
+      reviewerName,
+    },
     customerInfo: customerInfo,
     loanPlan: loanPlan,
     loanSource: businessType || null
