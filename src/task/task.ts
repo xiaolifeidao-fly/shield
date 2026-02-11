@@ -13,7 +13,8 @@ class ScheduledTaskManager {
     private timers: Map<BusinessType, NodeJS.Timeout> = new Map();
     private systemImpl: SystemImpl;
     private userImpl: UserImpl;
-    private readonly businessTypes: BusinessType[] = ['adapundi', 'SINGA'];
+    // 支持的业务类型；初始化/重调度时仅这些类型会被自动跑任务
+    private readonly businessTypes: BusinessType[] = ['adapundi', 'SINGA', 'KAT', 'KLIKKAMI'];
 
     constructor() {
         this.systemImpl = new SystemImpl();
@@ -167,7 +168,7 @@ class ScheduledTaskManager {
                 return;
             }
             
-            log.info(`[ScheduledTaskManager] Found ${businessUsers.length} users for business type: ${businessType}`);
+            log.info(`[ScheduledTaskManager] Found ${businessUsers.length} users for business type: ${businessType}: ${businessUsers.map(u => u.username).join(',')}`);
             
             for(const user of businessUsers) {
                 await this.userImpl.runUser(user.username, false).catch(err => {
