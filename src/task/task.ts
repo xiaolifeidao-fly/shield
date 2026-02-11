@@ -170,11 +170,28 @@ class ScheduledTaskManager {
             
             log.info(`[ScheduledTaskManager] Found ${businessUsers.length} users for business type: ${businessType}: ${businessUsers.map(u => u.username).join(',')}`);
             
-            for(const user of businessUsers) {
-                await this.userImpl.runUser(user.username, false).catch(err => {
-                    log.error(`[ScheduledTaskManager] Failed to run user ${user.username}:`, err);
-                    // 不抛出错误，继续执行其他用户
-                });
+            if (businessType === 'KLIKKAMI') {
+                // KLIKKAMI 场景并发跑，避免单用户阻塞
+                const results = await Promise.allSettled(
+                    businessUsers.map(user =>
+                        this.userImpl.runUser(user.username, false).catch(err => {
+                            log.error(`[ScheduledTaskManager] Failed to run user ${user.username}:`, err);
+                            throw err;
+                        })
+                    )
+                );
+                const rejected = results.filter(r => r.status === 'rejected').length;
+                if (rejected > 0) {
+                    log.warn(`[ScheduledTaskManager] KLIKKAMI concurrent run completed with ${rejected} failures`);
+                }
+            } else {
+                // 其他业务保持串行，降低外部接口压力
+                for(const user of businessUsers) {
+                    await this.userImpl.runUser(user.username, false).catch(err => {
+                        log.error(`[ScheduledTaskManager] Failed to run user ${user.username}:`, err);
+                        // 不抛出错误，继续执行其他用户
+                    });
+                }
             }
             log.info(`[ScheduledTaskManager] Completed scheduled task for business type: ${businessType}`);
         } catch (error) {
