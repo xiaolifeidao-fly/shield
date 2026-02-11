@@ -2,7 +2,8 @@ import { AxiosInstance } from 'axios';
 import { BaseBusinessApi } from '../../common/base.api';
 import { CasePageParams, CasePageResponse, CaseDetail, LoanPlan, CustomerInfo, Case } from '../../common/entities';
 import { UserInfo, BusinessType } from '@model/user.types';
-import { adapundiInstance, writeCaseInstance, setCurrentUser, getCurrentUser } from './adapundi.axios';
+import { adapundiInstance, setCurrentUser, getCurrentUser } from './adapundi.axios';
+import { writeCase } from './writeCase.api';
 import { decryptPhone, AuditDataType, DecryptPhoneParams } from './phone.api';
 import log from '../../../utils/logger';
 
@@ -65,14 +66,6 @@ export class AdapundiBusinessApi extends BaseBusinessApi {
     customerInfo: CustomerInfo,
     businessType: BusinessType | undefined
   ): Promise<void> {
-    // 构建请求数据
-    const requestData = {
-      caseDetail: caseDetail,
-      customerInfo: customerInfo,
-      loanPlan: loanPlan,
-      loanSource: businessType || null
-    };
-    await writeCaseInstance.post("/loan/import/external/sync", requestData);
+    await writeCase(caseDetail, loanPlan, customerInfo, businessType, getCurrentUser());
   }
 }
-

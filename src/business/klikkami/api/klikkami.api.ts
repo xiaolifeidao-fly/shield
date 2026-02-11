@@ -519,7 +519,7 @@ export class KlikKamiBusinessApi extends BaseBusinessApi<Case> {
     );
     const { writeCase } = await import('@src/business/adapundi/api/writeCase.api');
     try {
-      await writeCase(caseDetail, loanPlan, customerInfo, businessType);
+      await writeCase(caseDetail, loanPlan, customerInfo, businessType, getKlikKamiCurrentUser());
     } catch (error) {
       logger.error(
         `[KlikKami] writeCase failed wid=${caseDetail.customerId} caseId=${caseDetail.caseId} customerId=${customerInfo.customerId}`,

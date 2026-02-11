@@ -910,7 +910,6 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
     customerInfo: CustomerInfo,
     businessType: BusinessType | undefined
   ): Promise<void> {
-    await writeCase(caseDetail, loanPlan, customerInfo, businessType);
+    await writeCase(caseDetail, loanPlan, customerInfo, businessType, getCurrentUser());
   }
 }
-

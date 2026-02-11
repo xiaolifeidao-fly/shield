@@ -8,7 +8,7 @@ import { getCaseDetail } from './case.api';
 import { getCustomerInfo } from './customer.api';
 import { getLoanDetail } from './loan.api';
 import log from '../../../utils/logger';
-import { writeCaseInstance } from '@src/business/adapundi/api/adapundi.axios';
+import { writeCase } from '@src/business/adapundi/api/writeCase.api';
 
 /**
  * KAT 业务 API 实现
@@ -96,15 +96,7 @@ export class KatBusinessApi extends BaseBusinessApi {
     customerInfo: CustomerInfo,
     businessType: BusinessType | undefined
   ): Promise<void> {
-    // 构建请求数据
-    const requestData = {
-      caseDetail: caseDetail,
-      customerInfo: customerInfo,
-      loanPlan: loanPlan,
-      loanSource: "Pendanaan"
-    };
-    log.info(`writeCase requestData: ${JSON.stringify(requestData)}`);
-    await writeCaseInstance.post("/loan/import/external/sync", requestData);
+    // 复用统一的 writeCase 逻辑，传入当前登录用户以设置 reviewerName
+    await writeCase(caseDetail, loanPlan, customerInfo, businessType, getCurrentUser());
   }
 }
-
