@@ -68,7 +68,10 @@ export interface SingaCase extends Case {
   
   /** WA 意向等级 (WA Intention Level) */
   waIntentionLevel?: string | null;
-  
+
+  /** Eva 意向等级 (Eva Intention Level) */
+  evaIntentionLevel?: string | null;
+
   /** 计划 (Plan) */
   plan?: string | null;
   
@@ -462,8 +465,41 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
           }
           return null;
         };
+
+        // 动态解析表头，建立列名到索引的映射
+        const headerRow = document.querySelector('table.table.align-items-center thead tr');
+        const columnIndexMap: Record<string, number> = {};
+        if (headerRow) {
+          const headers = Array.from(headerRow.querySelectorAll('th'));
+          headers.forEach((th, index) => {
+            const text = th.textContent?.trim().toUpperCase() || '';
+            // 标准化列名
+            columnIndexMap[text] = index;
+            // 处理多单词列名
+            const cleanText = text.replace(/\s+/g, '').toUpperCase();
+            if (cleanText && !columnIndexMap[cleanText]) {
+              columnIndexMap[cleanText] = index;
+            }
+          });
+        }
+
+        // 辅助函数：根据列名获取单元格索引
+        const getCellIndex = (columnNames: string[]): number => {
+          for (const name of columnNames) {
+            const upperName = name.toUpperCase();
+            if (columnIndexMap[upperName] !== undefined) {
+              return columnIndexMap[upperName];
+            }
+            const cleanName = upperName.replace(/\s+/g, '');
+            if (columnIndexMap[cleanName] !== undefined) {
+              return columnIndexMap[cleanName];
+            }
+          }
+          return -1;
+        };
+
         // DOM元素无法被JSON序列化,改为记录有用信息
-        
+
         rows.forEach((row: any, index: number) => {
           try {
             // 从 class 中提取 ID（如 "assign-60183905"）
@@ -496,31 +532,37 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
                 extractedCaseId = match[1];
               }
             }
-            
 
-            // 2. PTP 状态
+
+            // 2. PTP 状态（动态获取列索引）
             let ptpStatus: string | null = null;
-            const ptpCell = cells[2] as any; // 第3列（索引2）
-            if (ptpCell) {
-              const ptpBadge = ptpCell.querySelector('.badge');
-              if (ptpBadge) {
-                const ptpText = ptpBadge.textContent?.trim() || '';
-                if (ptpText.includes('PTP') || ptpText.includes('NO PTP') || ptpText.includes('BP')) {
-                  ptpStatus = ptpText;
+            const ptpIndex = getCellIndex(['PTP']);
+            if (ptpIndex >= 0) {
+              const ptpCell = cells[ptpIndex] as any;
+              if (ptpCell) {
+                const ptpBadge = ptpCell.querySelector('.badge');
+                if (ptpBadge) {
+                  const ptpText = ptpBadge.textContent?.trim() || '';
+                  if (ptpText.includes('PTP') || ptpText.includes('NO PTP') || ptpText.includes('BP')) {
+                    ptpStatus = ptpText;
+                  }
                 }
               }
             }
 
-            // 3. PRI 分数
+            // 3. PRI 分数（动态获取列索引）
             let priScore: number | null = null;
-            const priCell = cells[3] as any; // 第4列（索引3）
-            if (priCell) {
-              const priBadge = priCell.querySelector('.badge.bg-danger');
-            if (priBadge) {
-              const priText = priBadge.textContent?.trim() || '';
-              const priNum = parseNumber(priText);
-                if (priNum >= 0) {
-                priScore = priNum;
+            const priIndex = getCellIndex(['PRI']);
+            if (priIndex >= 0) {
+              const priCell = cells[priIndex] as any;
+              if (priCell) {
+                const priBadge = priCell.querySelector('.badge.bg-danger');
+                if (priBadge) {
+                  const priText = priBadge.textContent?.trim() || '';
+                  const priNum = parseNumber(priText);
+                  if (priNum >= 0) {
+                    priScore = priNum;
+                  }
                 }
               }
             }
@@ -578,16 +620,19 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
             const productEl = row.querySelector('.product');
             const product = productEl?.textContent?.trim() || null;
 
-            // 13. DPD - 逾期天数
+            // 13. DPD - 逾期天数（动态获取列索引）
             let overdueDay = 0;
-            const dpdCell = cells[13] as any; // 第14列（索引13）
-            if (dpdCell) {
-              const textDangerEl = dpdCell.querySelector('.text-danger');
-              if (textDangerEl) {
-                const text = textDangerEl.textContent?.trim() || '';
-                const num = parseInt(text, 10);
-                if (!isNaN(num) && num >= 0) {
-                  overdueDay = num;
+            const dpdIndex = getCellIndex(['DPD', 'Days Past Due']);
+            if (dpdIndex >= 0) {
+              const dpdCell = cells[dpdIndex] as any;
+              if (dpdCell) {
+                const textDangerEl = dpdCell.querySelector('.text-danger');
+                if (textDangerEl) {
+                  const text = textDangerEl.textContent?.trim() || '';
+                  const num = parseInt(text, 10);
+                  if (!isNaN(num) && num >= 0) {
+                    overdueDay = num;
+                  }
                 }
               }
             }
@@ -596,80 +641,61 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
             const collectionLevelEl = row.querySelector('.collectionLevel');
             const collectionLevel = collectionLevelEl?.textContent?.trim() || null;
 
-            // 15-20. 金额字段：Penalty, Current Due, Total Due, Repayment, RWP, Remaining
-            // 按表格列顺序提取金额（索引15-20）
+            // 15-20. 金额字段：Penalty, Current Due, Total Due, Repayment, RWP, Remaining（动态获取列索引）
             let penaltyAmount = 0;
             let currentDueAmount = 0;
             let totalDueAmount = 0;
             let repaymentAmount = 0;
             let rwp = 0;
             let remainingAmount = 0;
-            
-            // 按表格列顺序解析金额字段
-            // 15. Penalty (索引15)
-            const penaltyCell = cells[15] as any;
-            if (penaltyCell && penaltyCell.textContent?.includes('Rp.')) {
-              const text = penaltyCell.textContent?.trim() || '';
-              const match = text.match(/Rp\.\s*([\d.]+)/);
-              if (match) {
-                const numStr = match[1].replace(/\./g, '');
-                penaltyAmount = parseFloat(numStr) || 0;
+
+            // 解析金额字段的辅助函数
+            const parseAmount = (cell: any): number => {
+              if (cell && cell.textContent?.includes('Rp.')) {
+                const text = cell.textContent?.trim() || '';
+                const match = text.match(/Rp\.\s*([\d.]+)/);
+                if (match) {
+                  const numStr = match[1].replace(/\./g, '');
+                  return parseFloat(numStr) || 0;
+                }
               }
+              return 0;
+            };
+
+            // Penalty
+            const penaltyIndex = getCellIndex(['Penalty']);
+            if (penaltyIndex >= 0) {
+              penaltyAmount = parseAmount(cells[penaltyIndex]);
             }
-            
-            // 16. Current Due (索引16)
-            const currentDueCell = cells[16] as any;
-            if (currentDueCell && currentDueCell.textContent?.includes('Rp.')) {
-              const text = currentDueCell.textContent?.trim() || '';
-              const match = text.match(/Rp\.\s*([\d.]+)/);
-              if (match) {
-                const numStr = match[1].replace(/\./g, '');
-                currentDueAmount = parseFloat(numStr) || 0;
-              }
+
+            // Current Due
+            const currentDueIndex = getCellIndex(['Current Due']);
+            if (currentDueIndex >= 0) {
+              currentDueAmount = parseAmount(cells[currentDueIndex]);
             }
-            
-            // 17. Total Due (索引17)
-            const totalDueCell = cells[17] as any;
-            if (totalDueCell && totalDueCell.textContent?.includes('Rp.')) {
-              const text = totalDueCell.textContent?.trim() || '';
-              const match = text.match(/Rp\.\s*([\d.]+)/);
-              if (match) {
-                const numStr = match[1].replace(/\./g, '');
-                totalDueAmount = parseFloat(numStr) || 0;
-              }
+
+            // Total Due
+            const totalDueIndex = getCellIndex(['Total Due']);
+            if (totalDueIndex >= 0) {
+              totalDueAmount = parseAmount(cells[totalDueIndex]);
             }
-            
-            // 18. Repayment (索引18)
-            const repaymentCell = cells[18] as any;
-            if (repaymentCell && repaymentCell.textContent?.includes('Rp.')) {
-              const text = repaymentCell.textContent?.trim() || '';
-              const match = text.match(/Rp\.\s*([\d.]+)/);
-              if (match) {
-                const numStr = match[1].replace(/\./g, '');
-                repaymentAmount = parseFloat(numStr) || 0;
-              }
+
+            // Repayment
+            const repaymentIndex = getCellIndex(['Repayment']);
+            if (repaymentIndex >= 0) {
+              repaymentAmount = parseAmount(cells[repaymentIndex]);
             }
-            
-            // 19. RWP (索引19)
-            const rwpCell = cells[19] as any;
-            if (rwpCell && rwpCell.textContent?.includes('Rp.')) {
-              const text = rwpCell.textContent?.trim() || '';
-              const match = text.match(/Rp\.\s*([\d.]+)/);
-              if (match) {
-                const numStr = match[1].replace(/\./g, '');
-                rwp = parseFloat(numStr) || 0;
-              }
+
+            // RWP
+            const rwpIndex = getCellIndex(['RWP', 'Remaining Working Principal']);
+            if (rwpIndex >= 0) {
+              rwp = parseAmount(cells[rwpIndex]);
             }
-            
-            // 20. Remaining (索引20)
-            const remainingCell = cells[20] as any;
-            if (remainingCell && remainingCell.textContent?.includes('Rp.')) {
-              const text = remainingCell.textContent?.trim() || '';
-              const match = text.match(/Rp\.\s*([\d.]+)/);
-              if (match) {
-                const numStr = match[1].replace(/\./g, '');
-                remainingAmount = parseFloat(numStr) || 0;
-              }
+
+            // Remaining
+            const remainingIndex = getCellIndex(['Remaining']);
+            if (remainingIndex >= 0) {
+              remainingAmount = parseAmount(cells[remainingIndex]);
             }
 
             // 计算 principleAmount（通常是最小的金额，可能是 Current Due 或 Remaining）
@@ -682,83 +708,120 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
               principleAmount = totalDueAmount;
             }
 
-            // 21. Sensitivity - 敏感度
+            // 21. Sensitivity - 敏感度（动态获取列索引）
             let sensitivity: string | null = null;
-            const sensitivityCell = cells[21] as any; // 第22列（索引21）
-            if (sensitivityCell) {
-              const sensitivityBadge = sensitivityCell.querySelector('.badge');
-              if (sensitivityBadge) {
-                const sensitivityText = sensitivityBadge.textContent?.trim() || '';
-                if (sensitivityText.includes('risk') || sensitivityText.includes('No risk')) {
-                  sensitivity = sensitivityText;
+            const sensitivityIndex = getCellIndex(['Sensitivity']);
+            if (sensitivityIndex >= 0) {
+              const sensitivityCell = cells[sensitivityIndex] as any;
+              if (sensitivityCell) {
+                const sensitivityBadge = sensitivityCell.querySelector('.badge');
+                if (sensitivityBadge) {
+                  const sensitivityText = sensitivityBadge.textContent?.trim() || '';
+                  if (sensitivityText.includes('risk') || sensitivityText.includes('No risk')) {
+                    sensitivity = sensitivityText;
+                  }
                 }
               }
             }
 
-            // 22. Borrower Type - 借款人类型
+            // 22. Borrower Type - 借款人类型（动态获取列索引）
             let customerType: string | null = null;
-            const borrowerTypeCell = cells[22] as any; // 第23列（索引22）
-            if (borrowerTypeCell) {
-              const borrowerTypeBadge = borrowerTypeCell.querySelector('.badge');
-              if (borrowerTypeBadge) {
-                const borrowerTypeText = borrowerTypeBadge.textContent?.trim() || '';
-                if (borrowerTypeText.includes('New') || borrowerTypeText.includes('Existing') || borrowerTypeText.includes('No risk')) {
-                  customerType = borrowerTypeText;
+            const borrowerTypeIndex = getCellIndex(['Borrower Type', 'BorrowerType']);
+            if (borrowerTypeIndex >= 0) {
+              const borrowerTypeCell = cells[borrowerTypeIndex] as any;
+              if (borrowerTypeCell) {
+                const borrowerTypeBadge = borrowerTypeCell.querySelector('.badge');
+                if (borrowerTypeBadge) {
+                  const borrowerTypeText = borrowerTypeBadge.textContent?.trim() || '';
+                  if (borrowerTypeText.includes('New') || borrowerTypeText.includes('Existing') || borrowerTypeText.includes('No risk')) {
+                    customerType = borrowerTypeText;
+                  }
                 }
               }
             }
 
-            // 23. WA Intention - WA 意向
+            // 23. WA Intention - WA 意向（动态获取列索引）
             let waIntentionLevel: string | null = null;
-            const waIntentionCell = cells[23] as any; // 第24列（索引23）
-            if (waIntentionCell) {
-              const waIntentionBadge = waIntentionCell.querySelector('.badge');
-              if (waIntentionBadge) {
-                const waIntentionText = waIntentionBadge.textContent?.trim() || '';
-                if (waIntentionText.includes('WA') || waIntentionText.includes('Delivered')) {
-                  waIntentionLevel = waIntentionText;
+            const waIntentionIndex = getCellIndex(['WA Intention', 'WAIntention']);
+            if (waIntentionIndex >= 0) {
+              const waIntentionCell = cells[waIntentionIndex] as any;
+              if (waIntentionCell) {
+                const waIntentionBadge = waIntentionCell.querySelector('.badge');
+                if (waIntentionBadge) {
+                  const waIntentionText = waIntentionBadge.textContent?.trim() || '';
+                  if (waIntentionText.includes('WA') || waIntentionText.includes('Delivered')) {
+                    waIntentionLevel = waIntentionText;
+                  }
                 }
               }
             }
 
-            // 24. Plan - 计划
+            // 24. Eva Intention - Eva 意向（动态获取列索引）
+            let evaIntentionLevel: string | null = null;
+            const evaIntentionIndex = getCellIndex(['Eva Intention', 'EvaIntention']);
+            if (evaIntentionIndex >= 0) {
+              const evaIntentionCell = cells[evaIntentionIndex] as any;
+              if (evaIntentionCell) {
+                const evaIntentionBadge = evaIntentionCell.querySelector('.badge');
+                if (evaIntentionBadge) {
+                  const evaIntentionText = evaIntentionBadge.textContent?.trim() || '';
+                  if (evaIntentionText.includes('Eva') || evaIntentionText.includes('Delivered')) {
+                    evaIntentionLevel = evaIntentionText;
+                  }
+                }
+              }
+            }
+
+            // 25. Plan - 计划（动态获取列索引）
             let plan: string | null = null;
-            const planCell = cells[24] as any; // 第25列（索引24）
-            if (planCell) {
-              const planText = planCell.textContent?.trim() || '';
-              if (planText.includes('Apps Notif') || planText.includes('Plan')) {
-                plan = planText;
+            const planIndex = getCellIndex(['Plan']);
+            if (planIndex >= 0) {
+              const planCell = cells[planIndex] as any;
+              if (planCell) {
+                const planText = planCell.textContent?.trim() || '';
+                if (planText.includes('Apps Notif') || planText.includes('Plan')) {
+                  plan = planText;
+                }
               }
             }
 
-            // 25. Assigned By - 分配人
+            // 26. Assigned By - 分配人（动态获取列索引）
             let assignedBy: string | null = null;
-            const assignedByCell = cells[25] as any; // 第26列（索引25）
-            if (assignedByCell) {
-              const assignedByText = assignedByCell.textContent?.trim() || '';
-              // 排除日期格式和金额
-              if (assignedByText && !assignedByText.match(/\d+\s+\w+\s+\d{4}/) && !assignedByText.includes('Rp.')) {
-                assignedBy = assignedByText;
+            const assignedByIndex = getCellIndex(['Assigned By', 'AssignedBy']);
+            if (assignedByIndex >= 0) {
+              const assignedByCell = cells[assignedByIndex] as any;
+              if (assignedByCell) {
+                const assignedByText = assignedByCell.textContent?.trim() || '';
+                // 排除日期格式和金额
+                if (assignedByText && !assignedByText.match(/\d+\s+\w+\s+\d{4}/) && !assignedByText.includes('Rp.')) {
+                  assignedBy = assignedByText;
+                }
               }
             }
 
-            // 26. Assigned At - 分配时间
+            // 27. Assigned At - 分配时间（动态获取列索引）
             let assignedAt: string | null = null;
-            const assignedAtCell = cells[26] as any; // 第27列（索引26）
-            if (assignedAtCell) {
-              const assignedAtText = assignedAtCell.textContent?.trim() || '';
-              if (assignedAtText && assignedAtText !== '-') {
-                assignedAt = parseDate(assignedAtText);
+            const assignedAtIndex = getCellIndex(['Assigned At', 'AssignedAt']);
+            if (assignedAtIndex >= 0) {
+              const assignedAtCell = cells[assignedAtIndex] as any;
+              if (assignedAtCell) {
+                const assignedAtText = assignedAtCell.textContent?.trim() || '';
+                if (assignedAtText && assignedAtText !== '-') {
+                  assignedAt = parseDate(assignedAtText);
+                }
               }
             }
 
-            // 27. Last Followed - 最后跟进时间
+            // 28. Last Followed - 最后跟进时间（动态获取列索引）
             let lastFollowedUpDate: string | null = null;
-            const lastFollowedCell = cells[27] as any; // 第28列（索引27）
-            if (lastFollowedCell) {
-              const lastFollowedText = lastFollowedCell.textContent?.trim() || '';
-              if (lastFollowedText && lastFollowedText !== '-') {
-                lastFollowedUpDate = parseDate(lastFollowedText);
+            const lastFollowedIndex = getCellIndex(['Last Followed', 'LastFollowed', 'Last Follow']);
+            if (lastFollowedIndex >= 0) {
+              const lastFollowedCell = cells[lastFollowedIndex] as any;
+              if (lastFollowedCell) {
+                const lastFollowedText = lastFollowedCell.textContent?.trim() || '';
+                if (lastFollowedText && lastFollowedText !== '-') {
+                  lastFollowedUpDate = parseDate(lastFollowedText);
+                }
               }
             }
 
@@ -806,6 +869,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
               smsEventStatus: null,
               latestSmsSendSuccessTime: null,
               loanTag: waIntentionLevel,
+              evaIntentionLevel: evaIntentionLevel,
               vipLevel: null,
               postLoanPreReminderLevel: null,
               overdueInstitutionLevel: null,
