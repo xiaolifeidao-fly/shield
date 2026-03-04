@@ -383,8 +383,8 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
   }
 
   async getCasePage(params: CasePageParams): Promise<CasePageResponse<SingaCase>> {
-    const { pageNum = 1, pageSize = 20 } = params;
-    
+    const { pageNum = 1, pageSize = 20, type = 'need_follow_up' } = params;
+
     const user = this.getCurrentUser();
     if (!user || !user.username) {
       throw new Error('未找到当前用户信息');
@@ -395,8 +395,24 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
     let page;
     try {
-      // 初始化页面
-      const url = 'https://col.singa.id/loan-collection/assign/need-follow-up?page=' + pageNum + "&pageSize=1000";
+      // 根据 type 构建不同的 URL
+      let url: string;
+      if (type === 'followed_up_task') {
+        // 计算昨天的日期 (yyyy-MM-dd)
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yyyy = yesterday.getFullYear();
+        const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
+        const dd = String(yesterday.getDate()).padStart(2, '0');
+        const assignAt = `${yyyy}-${mm}-${dd}`;
+        url = `https://col.singa.id/loan-collection/assign/already-follow-up?assign_at=${assignAt}&page=${pageNum}&pageSize=1000`;
+      } else {
+        // 默认 need_follow_up 页面
+        url = 'https://col.singa.id/loan-collection/assign/need-follow-up?page=' + pageNum + "&pageSize=1000";
+      }
+
+      log.info(`Singa getCasePage: params=${JSON.stringify(params)}, type=${type}, url=${url}`);
+
       page = await getPage(resourceId, url) as unknown as Page;
       if (!page) {
         throw new Error('无法初始化页面');
