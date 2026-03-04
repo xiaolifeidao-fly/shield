@@ -454,6 +454,48 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
           }
           return null;
         };
+
+        // 获取表格表头，解析列索引
+        const getCellIndex = (headerNames: string[]): number => {
+          // 尝试从表头行获取列索引
+          const thead = document.querySelector('thead');
+          if (thead) {
+            const headers = Array.from(thead.querySelectorAll('th'));
+            for (let i = 0; i < headers.length; i++) {
+              const headerText = headers[i].textContent?.trim() || '';
+              for (const name of headerNames) {
+                if (headerText.toLowerCase().includes(name.toLowerCase())) {
+                  return i;
+                }
+              }
+            }
+          }
+          return -1;
+        };
+
+        // 解析表头获取列索引映射
+        const cellIndexMap: { [key: string]: number } = {};
+        const commonHeaders = [
+          { key: 'ptp', names: ['PTP'] },
+          { key: 'pri', names: ['PRI'] },
+          { key: 'dpd', names: ['DPD', 'Overdue'] },
+          { key: 'penalty', names: ['Penalty'] },
+          { key: 'currentDue', names: ['Current Due'] },
+          { key: 'totalDue', names: ['Total Due'] },
+          { key: 'repayment', names: ['Repayment'] },
+          { key: 'rwp', names: ['RWP'] },
+          { key: 'remaining', names: ['Remaining'] },
+          { key: 'sensitivity', names: ['Sensitivity'] },
+          { key: 'borrowerType', names: ['Borrower Type', 'BorrowerType'] },
+          { key: 'waIntention', names: ['WA Intention', 'WAIntention'] },
+          { key: 'plan', names: ['Plan'] },
+          { key: 'assignedBy', names: ['Assigned By', 'AssignedBy'] },
+          { key: 'assignedAt', names: ['Assigned At', 'AssignedAt'] },
+          { key: 'lastFollowed', names: ['Last Followed', 'LastFollowed', 'Last Follow'] },
+        ];
+        commonHeaders.forEach(({ key, names }) => {
+          cellIndexMap[key] = getCellIndex(names);
+        });
         // DOM元素无法被JSON序列化,改为记录有用信息
         rows.forEach((row: any, index: number) => {
           try {
@@ -489,29 +531,35 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
             }
             
 
-            // 2. PTP 状态
+            // 2. PTP 状态（动态获取列索引）
             let ptpStatus: string | null = null;
-            const ptpCell = cells[3] as any; // 第3列（索引2）
-            if (ptpCell) {
-              const ptpBadge = ptpCell.querySelector('.badge');
-              if (ptpBadge) {
-                const ptpText = ptpBadge.textContent?.trim() || '';
-                if (ptpText.includes('PTP') || ptpText.includes('NO PTP') || ptpText.includes('BP')) {
-                  ptpStatus = ptpText;
+            const ptpIndex = cellIndexMap['ptp'];
+            if (ptpIndex >= 0) {
+              const ptpCell = cells[ptpIndex] as any;
+              if (ptpCell) {
+                const ptpBadge = ptpCell.querySelector('.badge');
+                if (ptpBadge) {
+                  const ptpText = ptpBadge.textContent?.trim() || '';
+                  if (ptpText.includes('PTP') || ptpText.includes('NO PTP') || ptpText.includes('BP')) {
+                    ptpStatus = ptpText;
+                  }
                 }
               }
             }
 
-            // 3. PRI 分数
+            // 3. PRI 分数（动态获取列索引）
             let priScore: number | null = null;
-            const priCell = cells[4] as any; // 第4列（索引3）
-            if (priCell) {
-              const priBadge = priCell.querySelector('.badge.bg-danger');
-            if (priBadge) {
-              const priText = priBadge.textContent?.trim() || '';
-              const priNum = parseNumber(priText);
-                if (priNum >= 0) {
-                priScore = priNum;
+            const priIndex = cellIndexMap['pri'];
+            if (priIndex >= 0) {
+              const priCell = cells[priIndex] as any;
+              if (priCell) {
+                const priBadge = priCell.querySelector('.badge.bg-danger');
+                if (priBadge) {
+                  const priText = priBadge.textContent?.trim() || '';
+                  const priNum = parseNumber(priText);
+                  if (priNum >= 0) {
+                    priScore = priNum;
+                  }
                 }
               }
             }
@@ -569,15 +617,18 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
             const productEl = row.querySelector('.product');
             const product = productEl?.textContent?.trim() || null;
 
-            // 13. DPD - 逾期天数
+            // 13. DPD - 逾期天数（动态获取列索引）
             let overdueDay = 0;
-            const dpdCell = cells[14] as any; // 第14列（索引13）
-            if (dpdCell) {
+            const dpdIndex = cellIndexMap['dpd'];
+            if (dpdIndex >= 0) {
+              const dpdCell = cells[dpdIndex] as any;
+              if (dpdCell) {
                 const text = dpdCell.textContent?.trim() || '';
                 const num = parseInt(text, 10);
                 if (!isNaN(num) && num >= 0) {
                   overdueDay = num;
                 }
+              }
             }
 
             // 14. Bucket - 催收等级
@@ -592,71 +643,89 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
             let repaymentAmount = 0;
             let rwp = 0;
             let remainingAmount = 0;
-            
-            // 按表格列顺序解析金额字段
-            // 15. Penalty (索引15)
-            const penaltyCell = cells[16] as any;
-            if (penaltyCell && penaltyCell.textContent?.includes('Rp.')) {
-              const text = penaltyCell.textContent?.trim() || '';
-              const match = text.match(/Rp\.\s*([\d.]+)/);
-              if (match) {
-                const numStr = match[1].replace(/\./g, '');
-                penaltyAmount = parseFloat(numStr) || 0;
+
+            // 按表格列顺序解析金额字段（动态获取列索引）
+            // 15. Penalty
+            const penaltyIndex = cellIndexMap['penalty'];
+            if (penaltyIndex >= 0) {
+              const penaltyCell = cells[penaltyIndex] as any;
+              if (penaltyCell && penaltyCell.textContent?.includes('Rp.')) {
+                const text = penaltyCell.textContent?.trim() || '';
+                const match = text.match(/Rp\.\s*([\d.]+)/);
+                if (match) {
+                  const numStr = match[1].replace(/\./g, '');
+                  penaltyAmount = parseFloat(numStr) || 0;
+                }
               }
             }
-            
-            // 16. Current Due (索引16)
-            const currentDueCell = cells[17] as any;
-            if (currentDueCell && currentDueCell.textContent?.includes('Rp.')) {
-              const text = currentDueCell.textContent?.trim() || '';
-              const match = text.match(/Rp\.\s*([\d.]+)/);
-              if (match) {
-                const numStr = match[1].replace(/\./g, '');
-                currentDueAmount = parseFloat(numStr) || 0;
+
+            // 16. Current Due
+            const currentDueIndex = cellIndexMap['currentDue'];
+            if (currentDueIndex >= 0) {
+              const currentDueCell = cells[currentDueIndex] as any;
+              if (currentDueCell && currentDueCell.textContent?.includes('Rp.')) {
+                const text = currentDueCell.textContent?.trim() || '';
+                const match = text.match(/Rp\.\s*([\d.]+)/);
+                if (match) {
+                  const numStr = match[1].replace(/\./g, '');
+                  currentDueAmount = parseFloat(numStr) || 0;
+                }
               }
             }
-            
-            // 17. Total Due (索引17)
-            const totalDueCell = cells[18] as any;
-            if (totalDueCell && totalDueCell.textContent?.includes('Rp.')) {
-              const text = totalDueCell.textContent?.trim() || '';
-              const match = text.match(/Rp\.\s*([\d.]+)/);
-              if (match) {
-                const numStr = match[1].replace(/\./g, '');
-                totalDueAmount = parseFloat(numStr) || 0;
+
+            // 17. Total Due
+            const totalDueIndex = cellIndexMap['totalDue'];
+            if (totalDueIndex >= 0) {
+              const totalDueCell = cells[totalDueIndex] as any;
+              if (totalDueCell && totalDueCell.textContent?.includes('Rp.')) {
+                const text = totalDueCell.textContent?.trim() || '';
+                const match = text.match(/Rp\.\s*([\d.]+)/);
+                if (match) {
+                  const numStr = match[1].replace(/\./g, '');
+                  totalDueAmount = parseFloat(numStr) || 0;
+                }
               }
             }
-            
-            // 18. Repayment (索引18)
-            const repaymentCell = cells[19] as any;
-            if (repaymentCell && repaymentCell.textContent?.includes('Rp.')) {
-              const text = repaymentCell.textContent?.trim() || '';
-              const match = text.match(/Rp\.\s*([\d.]+)/);
-              if (match) {
-                const numStr = match[1].replace(/\./g, '');
-                repaymentAmount = parseFloat(numStr) || 0;
+
+            // 18. Repayment
+            const repaymentIndex = cellIndexMap['repayment'];
+            if (repaymentIndex >= 0) {
+              const repaymentCell = cells[repaymentIndex] as any;
+              if (repaymentCell && repaymentCell.textContent?.includes('Rp.')) {
+                const text = repaymentCell.textContent?.trim() || '';
+                const match = text.match(/Rp\.\s*([\d.]+)/);
+                if (match) {
+                  const numStr = match[1].replace(/\./g, '');
+                  repaymentAmount = parseFloat(numStr) || 0;
+                }
               }
             }
-            
-            // 19. RWP (索引19)
-            const rwpCell = cells[20] as any;
-            if (rwpCell && rwpCell.textContent?.includes('Rp.')) {
-              const text = rwpCell.textContent?.trim() || '';
-              const match = text.match(/Rp\.\s*([\d.]+)/);
-              if (match) {
-                const numStr = match[1].replace(/\./g, '');
-                rwp = parseFloat(numStr) || 0;
+
+            // 19. RWP
+            const rwpIndex = cellIndexMap['rwp'];
+            if (rwpIndex >= 0) {
+              const rwpCell = cells[rwpIndex] as any;
+              if (rwpCell && rwpCell.textContent?.includes('Rp.')) {
+                const text = rwpCell.textContent?.trim() || '';
+                const match = text.match(/Rp\.\s*([\d.]+)/);
+                if (match) {
+                  const numStr = match[1].replace(/\./g, '');
+                  rwp = parseFloat(numStr) || 0;
+                }
               }
             }
-            
-            // 20. Remaining (索引20)
-            const remainingCell = cells[21] as any;
-            if (remainingCell && remainingCell.textContent?.includes('Rp.')) {
-              const text = remainingCell.textContent?.trim() || '';
-              const match = text.match(/Rp\.\s*([\d.]+)/);
-              if (match) {
-                const numStr = match[1].replace(/\./g, '');
-                remainingAmount = parseFloat(numStr) || 0;
+
+            // 20. Remaining
+            const remainingIndex = cellIndexMap['remaining'];
+            if (remainingIndex >= 0) {
+              const remainingCell = cells[remainingIndex] as any;
+              if (remainingCell && remainingCell.textContent?.includes('Rp.')) {
+                const text = remainingCell.textContent?.trim() || '';
+                const match = text.match(/Rp\.\s*([\d.]+)/);
+                if (match) {
+                  const numStr = match[1].replace(/\./g, '');
+                  remainingAmount = parseFloat(numStr) || 0;
+                }
               }
             }
 
@@ -670,83 +739,104 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
               principleAmount = totalDueAmount;
             }
 
-            // 21. Sensitivity - 敏感度
+            // 21. Sensitivity - 敏感度（动态获取列索引）
             let sensitivity: string | null = null;
-            const sensitivityCell = cells[22] as any; // 第22列（索引21）
-            if (sensitivityCell) {
-              const sensitivityBadge = sensitivityCell.querySelector('.badge');
-              if (sensitivityBadge) {
-                const sensitivityText = sensitivityBadge.textContent?.trim() || '';
-                if (sensitivityText.includes('risk') || sensitivityText.includes('No risk')) {
-                  sensitivity = sensitivityText;
+            const sensitivityIndex = cellIndexMap['sensitivity'];
+            if (sensitivityIndex >= 0) {
+              const sensitivityCell = cells[sensitivityIndex] as any;
+              if (sensitivityCell) {
+                const sensitivityBadge = sensitivityCell.querySelector('.badge');
+                if (sensitivityBadge) {
+                  const sensitivityText = sensitivityBadge.textContent?.trim() || '';
+                  if (sensitivityText.includes('risk') || sensitivityText.includes('No risk')) {
+                    sensitivity = sensitivityText;
+                  }
                 }
               }
             }
 
-            // 22. Borrower Type - 借款人类型
+            // 22. Borrower Type - 借款人类型（动态获取列索引）
             let customerType: string | null = null;
-            const borrowerTypeCell = cells[23] as any; // 第23列（索引22）
-            if (borrowerTypeCell) {
-              const borrowerTypeBadge = borrowerTypeCell.querySelector('.badge');
-              if (borrowerTypeBadge) {
-                const borrowerTypeText = borrowerTypeBadge.textContent?.trim() || '';
-                if (borrowerTypeText.includes('New') || borrowerTypeText.includes('Existing') || borrowerTypeText.includes('No risk')) {
-                  customerType = borrowerTypeText;
+            const borrowerTypeIndex = cellIndexMap['borrowerType'];
+            if (borrowerTypeIndex >= 0) {
+              const borrowerTypeCell = cells[borrowerTypeIndex] as any;
+              if (borrowerTypeCell) {
+                const borrowerTypeBadge = borrowerTypeCell.querySelector('.badge');
+                if (borrowerTypeBadge) {
+                  const borrowerTypeText = borrowerTypeBadge.textContent?.trim() || '';
+                  if (borrowerTypeText.includes('New') || borrowerTypeText.includes('Existing') || borrowerTypeText.includes('No risk')) {
+                    customerType = borrowerTypeText;
+                  }
                 }
               }
             }
 
-            // 23. WA Intention - WA 意向
+            // 23. WA Intention - WA 意向（动态获取列索引）
             let waIntentionLevel: string | null = null;
-            const waIntentionCell = cells[24] as any; // 第24列（索引23）
-            if (waIntentionCell) {
-              const waIntentionBadge = waIntentionCell.querySelector('.badge');
-              if (waIntentionBadge) {
-                const waIntentionText = waIntentionBadge.textContent?.trim() || '';
-                if (waIntentionText.includes('WA') || waIntentionText.includes('Delivered')) {
-                  waIntentionLevel = waIntentionText;
+            const waIntentionIndex = cellIndexMap['waIntention'];
+            if (waIntentionIndex >= 0) {
+              const waIntentionCell = cells[waIntentionIndex] as any;
+              if (waIntentionCell) {
+                const waIntentionBadge = waIntentionCell.querySelector('.badge');
+                if (waIntentionBadge) {
+                  const waIntentionText = waIntentionBadge.textContent?.trim() || '';
+                  if (waIntentionText.includes('WA') || waIntentionText.includes('Delivered')) {
+                    waIntentionLevel = waIntentionText;
+                  }
                 }
               }
             }
 
-            // 24. Plan - 计划
+            // 24. Plan - 计划（动态获取列索引）
             let plan: string | null = null;
-            const planCell = cells[24] as any; // 第25列（索引24）
-            if (planCell) {
-              const planText = planCell.textContent?.trim() || '';
-              if (planText.includes('Apps Notif') || planText.includes('Plan')) {
-                plan = planText;
+            const planIndex = cellIndexMap['plan'];
+            if (planIndex >= 0) {
+              const planCell = cells[planIndex] as any;
+              if (planCell) {
+                const planText = planCell.textContent?.trim() || '';
+                if (planText.includes('Apps Notif') || planText.includes('Plan')) {
+                  plan = planText;
+                }
               }
             }
 
-            // 25. Assigned By - 分配人
+            // 25. Assigned By - 分配人（动态获取列索引）
             let assignedBy: string | null = null;
-            const assignedByCell = cells[26] as any; // 第26列（索引25）
-            if (assignedByCell) {
-              const assignedByText = assignedByCell.textContent?.trim() || '';
-              // 排除日期格式和金额
-              if (assignedByText && !assignedByText.match(/\d+\s+\w+\s+\d{4}/) && !assignedByText.includes('Rp.')) {
-                assignedBy = assignedByText;
+            const assignedByIndex = cellIndexMap['assignedBy'];
+            if (assignedByIndex >= 0) {
+              const assignedByCell = cells[assignedByIndex] as any;
+              if (assignedByCell) {
+                const assignedByText = assignedByCell.textContent?.trim() || '';
+                // 排除日期格式和金额
+                if (assignedByText && !assignedByText.match(/\d+\s+\w+\s+\d{4}/) && !assignedByText.includes('Rp.')) {
+                  assignedBy = assignedByText;
+                }
               }
             }
 
-            // 26. Assigned At - 分配时间
+            // 26. Assigned At - 分配时间（动态获取列索引）
             let assignedAt: string | null = null;
-            const assignedAtCell = cells[27] as any; // 第27列（索引26）
-            if (assignedAtCell) {
-              const assignedAtText = assignedAtCell.textContent?.trim() || '';
-              if (assignedAtText && assignedAtText !== '-') {
-                assignedAt = parseDate(assignedAtText);
+            const assignedAtIndex = cellIndexMap['assignedAt'];
+            if (assignedAtIndex >= 0) {
+              const assignedAtCell = cells[assignedAtIndex] as any;
+              if (assignedAtCell) {
+                const assignedAtText = assignedAtCell.textContent?.trim() || '';
+                if (assignedAtText && assignedAtText !== '-') {
+                  assignedAt = parseDate(assignedAtText);
+                }
               }
             }
 
-            // 27. Last Followed - 最后跟进时间
+            // 27. Last Followed - 最后跟进时间（动态获取列索引）
             let lastFollowedUpDate: string | null = null;
-            const lastFollowedCell = cells[28] as any; // 第28列（索引27）
-            if (lastFollowedCell) {
-              const lastFollowedText = lastFollowedCell.textContent?.trim() || '';
-              if (lastFollowedText && lastFollowedText !== '-') {
-                lastFollowedUpDate = parseDate(lastFollowedText);
+            const lastFollowedIndex = cellIndexMap['lastFollowed'];
+            if (lastFollowedIndex >= 0) {
+              const lastFollowedCell = cells[lastFollowedIndex] as any;
+              if (lastFollowedCell) {
+                const lastFollowedText = lastFollowedCell.textContent?.trim() || '';
+                if (lastFollowedText && lastFollowedText !== '-') {
+                  lastFollowedUpDate = parseDate(lastFollowedText);
+                }
               }
             }
 
