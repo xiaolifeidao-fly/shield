@@ -236,7 +236,7 @@ log.info("app load")
 async function createDefaultWindow() {
   try {
     const store = new Store();
-    init(store);
+    await init(store);
     log.info(`WEBVIEW_URL: ${process.env.WEBVIEW_URL}`);
     const instance = await createWindow("main", `${process.env.WEBVIEW_URL}`);
     

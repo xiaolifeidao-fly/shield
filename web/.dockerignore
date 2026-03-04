@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.DS_Store
+*.log
+coverage
+dist
+out
+tsconfig.tsbuildinfo
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

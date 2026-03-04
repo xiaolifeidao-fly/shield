@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/.next
+**/.DS_Store
+**/*.log
+**/coverage
+**/dist
+**/out
+**/.runtime
+**/tsconfig.tsbuildinfo
+client
+webview
