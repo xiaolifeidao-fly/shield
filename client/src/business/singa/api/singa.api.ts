@@ -458,11 +458,12 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
         // 获取表格表头，解析列索引
         const getCellIndex = (headerNames: string[]): number => {
           // 尝试从表头行获取列索引
+          // @ts-expect-error - document 在浏览器环境中存在
           const thead = document.querySelector('thead');
           if (thead) {
             const headers = Array.from(thead.querySelectorAll('th'));
             for (let i = 0; i < headers.length; i++) {
-              const headerText = headers[i].textContent?.trim() || '';
+              const headerText = (headers[i] as any).textContent?.trim() || '';
               for (const name of headerNames) {
                 if (headerText.toLowerCase().includes(name.toLowerCase())) {
                   return i;
