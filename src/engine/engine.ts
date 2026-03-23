@@ -22,6 +22,39 @@ const browserMap = new Map<string, Browser>();
 
 const contextMap = new Map<string, BrowserContext>();
 
+function resolveConfiguredPath(configuredPath: string | undefined): string | undefined {
+    if (!configuredPath) {
+        return undefined;
+    }
+
+    return path.isAbsolute(configuredPath)
+        ? configuredPath
+        : path.resolve(process.cwd(), configuredPath);
+}
+
+function getEngineRootPath(): string {
+    return resolveConfiguredPath(process.env.USER_DATA_PATH || process.env.SHIELD_ENGINE_ROOT_DIR)
+        || path.join(os.homedir(), '.config', 'shield');
+}
+
+function getSessionBasePath(): string {
+    return resolveConfiguredPath(process.env.SHIELD_ENGINE_SESSION_DIR)
+        || path.join(getEngineRootPath(), 'resource', 'session');
+}
+
+function getUserDataBasePath(): string {
+    return resolveConfiguredPath(process.env.SHIELD_ENGINE_USER_DATA_DIR)
+        || path.join(getEngineRootPath(), 'resource', 'userDataDir');
+}
+
+function getConfiguredChromePath(): string | undefined {
+    return resolveConfiguredPath(
+        process.env.CHROME_PATH
+        || process.env.PLAYWRIGHT_CHROMIUM_PATH
+        || process.env.SHIELD_ENGINE_BROWSER_PATH
+    );
+}
+
 
 // 获取系统真实的Chrome浏览器路径
 function getSystemChromePath(): string {
@@ -91,8 +124,7 @@ function getSystemChromePath(): string {
                     return chromePath;
                 }
             }
-            console.log("chromium.executablePath()", chromium.executablePath());
-            return chromium.executablePath();
+            break;
         default:
             throw new Error(`不支持的操作系统: ${platform}`);
     }
@@ -104,8 +136,9 @@ function getSystemChromePath(): string {
 // 获取Chrome浏览器路径的主方法
 function getChromePath(): string {
     // 1. 优先使用环境变量中的路径
-    if (process.env.CHROME_PATH) {
-        const envPath = process.env.CHROME_PATH;
+    const configuredChromePath = getConfiguredChromePath();
+    if (configuredChromePath) {
+        const envPath = configuredChromePath;
         console.log(`使用环境变量中的Chrome路径: ${envPath}`);
         
         // 验证环境变量中的路径是否存在
@@ -122,9 +155,22 @@ function getChromePath(): string {
     try {
         return getSystemChromePath();
     } catch (error) {
-        console.error('❌ Chrome路径检测失败:', (error as Error).message);
-        throw error;
+        console.log(`系统Chrome未找到，尝试Playwright自带Chromium: ${(error as Error).message}`);
     }
+
+    // 3. 回退到 Playwright 自带 Chromium
+    try {
+        const bundledChromiumPath = chromium.executablePath();
+        console.log(`尝试使用Playwright自带Chromium: ${bundledChromiumPath}`);
+        if (bundledChromiumPath && fs.existsSync(bundledChromiumPath)) {
+            console.log(`✅ 找到Playwright Chromium: ${bundledChromiumPath}`);
+            return bundledChromiumPath;
+        }
+    } catch (error) {
+        console.error('❌ Playwright Chromium路径检测失败:', (error as Error).message);
+    }
+
+    throw new Error(`未找到可用的Chrome/Chromium浏览器。操作系统: ${os.platform()}`);
 }
 
 function shouldDisableChromiumSandbox(): boolean {
@@ -291,7 +337,7 @@ export abstract class DoorEngine<T = any> {
     }
 
     getChromePath() : string | undefined{
-        return process.env.CHROME_PATH;
+        return getConfiguredChromePath();
     }
 
     addMonitor(monitor: Monitor){
@@ -691,9 +737,7 @@ export abstract class DoorEngine<T = any> {
     }
 
     public getLastSessionDir(){
-        const userDataPath = path.join(os.homedir(), '.config', 'shield');
-
-        const sessionDirPath = path.join(userDataPath,'resource','session',this.getNamespace(), this.resourceId.toString());
+        const sessionDirPath = path.join(getSessionBasePath(), this.getNamespace(), this.resourceId.toString());
         log.info("sessionDirPath is ", sessionDirPath);
         if(fs.existsSync(sessionDirPath)){
             //获取此文件夹下最新的那个.json文件
@@ -710,9 +754,7 @@ export abstract class DoorEngine<T = any> {
 
     public getSessionDir(){
         const sessionFileName = Date.now().toString() + ".json";
-        const userDataPath = path.join(os.homedir(), '.config', 'shield');
-
-        const sessionDirPath = path.join(userDataPath,'resource','session',this.getNamespace(), this.resourceId.toString());
+        const sessionDirPath = path.join(getSessionBasePath(), this.getNamespace(), this.resourceId.toString());
         if(!fs.existsSync(sessionDirPath)){
             fs.mkdirSync(sessionDirPath, { recursive: true });
         }
@@ -721,8 +763,7 @@ export abstract class DoorEngine<T = any> {
     }
 
     getUserDataDir(){
-        const userDataPath = path.join(os.homedir(), '.config', 'shield');
-        const userDataDir = path.join(userDataPath,'resource','userDataDir',this.getNamespace(), this.resourceId.toString());
+        const userDataDir = path.join(getUserDataBasePath(), this.getNamespace(), this.resourceId.toString());
         log.info("userDataDir is ", userDataDir);
         if(!fs.existsSync(userDataDir)){
             fs.mkdirSync(userDataDir, { recursive: true });
