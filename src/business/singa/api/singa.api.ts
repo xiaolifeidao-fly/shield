@@ -9,6 +9,9 @@ import { getPage } from '@src/business/common/engine.manager';
 import { Page } from 'playwright-core';
 import { login as singaLogin } from './login.api';
 import { writeCase } from '@src/business/adapundi/api/writeCase.api';
+import { sleep } from '@utils/index';
+import { evaluateSerializedScript } from '@utils/page-eval';
+import { EXTRACT_CASE_PAGE_SCRIPT, EXTRACT_LOAN_DETAIL_SCRIPT } from './singa.page-scripts';
 
 /**
  * Singa Case 接口，扩展自 Case
@@ -176,78 +179,14 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
         log.warn(`Singa 贷款详情页面未找到订单表格: ${caseId}`);
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const detail : any = await page.evaluate((): any => {
-        const doc = (globalThis as any).document as any;
-        if (!doc) {
-          return null;
-        }
-
-        const table = doc.querySelector('#firstTable tbody');
-        if (!table) {
-          return null;
-        }
-
-        const row = table.querySelector('tr') as any;
-        if (!row) {
-          return null;
-        }
-
-        const cells = Array.from(row.querySelectorAll('td')) as any[];
-        if (cells.length < 6) {
-          return null;
-        }
-
-        const getCellText = (index: number): string => {
-          const cell = cells[index] as any;
-          if (!cell) {
-            return '';
-          }
-          const text = cell.textContent ?? '';
-          return String(text).replace(/\s+/g, ' ').trim();
-        };
-
-        const parseAmount = (text: string): number => {
-          if (!text) {
-            return 0;
-          }
-          const cleaned = text
-            .replace(/Rp\./gi, '')
-            .replace(/\s+/g, '')
-            .replace(/\./g, '')
-            .replace(/,/g, '');
-          const num = parseFloat(cleaned);
-          return Number.isNaN(num) ? 0 : num;
-        };
-
-        const parseDate = (text: string): string | null => {
-          if (!text || text === '-' || text === '--') {
-            return null;
-          }
-          const trimmed = text.replace(/\s+/g, ' ').trim();
-          const date = new Date(trimmed);
-          if (Number.isNaN(date.getTime())) {
-            return null;
-          }
-          return date.toISOString();
-        };
-
-        const productName = getCellText(0);
-        const bankName = getCellText(1);
-        const contractAmount = parseAmount(getCellText(2));
-        const applyAt = parseDate(getCellText(3));
-        const disbursementDate = parseDate(getCellText(4));
-        const disbursementAmount = parseAmount(getCellText(5));
-
-        return {
-          productName,
-          bankName,
-          contractAmount,
-          applyAt,
-          disbursementDate,
-          disbursementAmount,
-        };
-      });
+      const detail = await evaluateSerializedScript<{
+        productName: string;
+        bankName: string;
+        contractAmount: number;
+        applyAt: string | null;
+        disbursementDate: string | null;
+        disbursementAmount: number;
+      } | null>(page, EXTRACT_LOAN_DETAIL_SCRIPT);
 
       if (!detail) {
         log.warn(`Singa 贷款详情解析失败: ${caseId}`);

@@ -24,6 +24,9 @@
       "@utils/*": [
         "./src/common/utils/*"
       ],
+      "@utils/page-eval": [
+        "./src/common/utils/page-eval"
+      ],
       "@model/*": [
         "./src/common/model/*"
       ],
