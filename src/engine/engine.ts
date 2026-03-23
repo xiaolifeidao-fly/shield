@@ -128,36 +128,58 @@ function getChromePath(): string {
 }
 
 function shouldDisableChromiumSandbox(): boolean {
+    if (process.env.CHROMIUM_SANDBOX === 'true') {
+        return false;
+    }
+    if (process.env.CHROMIUM_SANDBOX === 'false') {
+        return true;
+    }
     return os.platform() === 'linux'
         && typeof process.getuid === 'function'
         && process.getuid() === 0;
 }
 
-function configurePlaywrightSandboxEnv() {
-    env['PLAYWRIGHT_CHROMIUM_USE_HEADLESS_NEW'] = 'true';
-    env['PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD'] = '0';
-    env['PLAYWRIGHT_DISABLE_SANDBOX'] = shouldDisableChromiumSandbox() ? 'true' : 'false';
-}
-
-function getChromiumSandboxArgs(): string[] {
-    if (shouldDisableChromiumSandbox()) {
-        return ['--no-sandbox', '--disable-setuid-sandbox'];
+function shouldForceHeadlessBrowser(): boolean {
+    if (process.env.PLAYWRIGHT_HEADLESS === 'true' || process.env.PLAYWRIGHT_FORCE_HEADLESS === 'true') {
+        return true;
     }
 
-    return ['--disable-sandbox=false', '--enable-sandbox'];
+    if (process.env.PLAYWRIGHT_HEADLESS === 'false' || process.env.PLAYWRIGHT_FORCE_HEADLESS === 'false') {
+        return false;
+    }
+
+    return os.platform() === 'linux'
+        && !process.env.DISPLAY
+        && !process.env.WAYLAND_DISPLAY;
 }
 
-function getChromiumIgnoreDefaultArgs(): string[] {
-    const args = [
+function getChromiumLaunchOptions() {
+    const disableSandbox = shouldDisableChromiumSandbox();
+    const headless = shouldForceHeadlessBrowser();
+    const sandboxArgs = disableSandbox
+        ? ['--no-sandbox', '--disable-setuid-sandbox']
+        : ['--disable-sandbox=false', '--enable-sandbox'];
+    const ignoreDefaultArgs = [
         '--enable-automation',
         '--enable-blink-features=IdleDetection'
     ];
 
-    if (!shouldDisableChromiumSandbox()) {
-        args.push('--no-sandbox', '--disable-setuid-sandbox');
+    if (!disableSandbox) {
+        ignoreDefaultArgs.push('--no-sandbox', '--disable-setuid-sandbox');
     }
 
-    return args;
+    return {
+        disableSandbox,
+        headless,
+        sandboxArgs,
+        ignoreDefaultArgs
+    };
+}
+
+function configurePlaywrightSandboxEnv(disableSandbox: boolean) {
+    env['PLAYWRIGHT_CHROMIUM_USE_HEADLESS_NEW'] = 'true';
+    env['PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD'] = '0';
+    env['PLAYWRIGHT_DISABLE_SANDBOX'] = disableSandbox ? 'true' : 'false';
 }
 
 export abstract class DoorEngine<T = any> {
@@ -217,7 +239,11 @@ export abstract class DoorEngine<T = any> {
         }else{
             this.chromePath = this.getChromePath();
         }
-        this.headless = headless;
+        const { headless: resolvedHeadless } = getChromiumLaunchOptions();
+        this.headless = resolvedHeadless ? true : headless;
+        if (!headless && this.headless) {
+            log.info("force headless mode because no display server is available");
+        }
         if(browserArgs){
             this.browserArgs = browserArgs;
         }
@@ -375,18 +401,18 @@ export abstract class DoorEngine<T = any> {
         // 创建浏览器上下文配置
         // 只保留必要的环境变量，避免触发安全警告
         
-        // 设置Playwright环境变量以避免自动添加--no-sandbox
-        configurePlaywrightSandboxEnv();
+        const { disableSandbox, sandboxArgs, ignoreDefaultArgs } = getChromiumLaunchOptions();
+        configurePlaywrightSandboxEnv(disableSandbox);
 
         const contextConfig: any = {
             headless: this.headless,
-            chromiumSandbox: !shouldDisableChromiumSandbox(),
+            chromiumSandbox: !disableSandbox,
             executablePath: storeBrowserPath,
             env : env,
             args: [
                 ...this.browserArgs,
                 `--window-size=${this.width},${this.height}`,
-                ...getChromiumSandboxArgs(),
+                ...sandboxArgs,
                 '--disable-dev-shm-usage',
                 // '--disable-gpu-sandbox',
                 '--no-first-run',
@@ -400,9 +426,7 @@ export abstract class DoorEngine<T = any> {
                 '--allow-running-insecure-content',
                 '--disable-features=VizDisplayCompositor'
             ],
-            ignoreDefaultArgs: [
-                ...getChromiumIgnoreDefaultArgs()
-            ],
+            ignoreDefaultArgs,
             // extraHTTPHeaders: {
             //     'sec-ch-ua': getSecChUa(platform),
             //     'sec-ch-ua-mobile': '?0', // 设置为移动设备
@@ -785,13 +809,14 @@ export abstract class DoorEngine<T = any> {
         // let context;
         const storeBrowserPath = await this.getRealChromePath();
         // const platform = await getPlatform();
+        const { sandboxArgs, ignoreDefaultArgs } = getChromiumLaunchOptions();
         const contextConfig : any = {
             bypassCSP : true,
             locale: 'zh-CN',
             args: [
                 ...this.browserArgs,
                 `--window-size=${this.width},${this.height}`,
-                ...getChromiumSandboxArgs(),
+                ...sandboxArgs,
                 '--disable-dev-shm-usage',
                 // '--disable-gpu-sandbox',
                 '--no-first-run',
@@ -805,9 +830,7 @@ export abstract class DoorEngine<T = any> {
                 '--allow-running-insecure-content',
                 '--disable-features=VizDisplayCompositor'
             ],
-            ignoreDefaultArgs: [
-                ...getChromiumIgnoreDefaultArgs()
-            ],
+            ignoreDefaultArgs,
             // extraHTTPHeaders: {
             //     'sec-ch-ua': getSecChUa(platform),
             //     'sec-ch-ua-mobile': '?0', // 设置为移动设备
@@ -864,8 +887,8 @@ export abstract class DoorEngine<T = any> {
             return browserMap.get(key);
         }
         
-        // 设置环境变量来阻止 Playwright 自动添加 --no-sandbox
-        configurePlaywrightSandboxEnv();
+        const { disableSandbox, sandboxArgs, ignoreDefaultArgs } = getChromiumLaunchOptions();
+        configurePlaywrightSandboxEnv(disableSandbox);
         
         // 使用固定的窗口尺寸，避免跳来跳去
         const windowWidth = this.width || 600;
@@ -876,7 +899,7 @@ export abstract class DoorEngine<T = any> {
         const args = [
             ...this.browserArgs,
             `--window-size=${windowWidth},${windowHeight}`,
-            ...getChromiumSandboxArgs(),
+            ...sandboxArgs,
             '--disable-dev-shm-usage',
             // '--disable-gpu-sandbox',
             '--no-first-run',
@@ -892,12 +915,12 @@ export abstract class DoorEngine<T = any> {
         ];
         
         const browser = await chromium.launch({
-            chromiumSandbox: !shouldDisableChromiumSandbox(),
+            chromiumSandbox: !disableSandbox,
             headless: this.headless,
             slowMo: 15 + Math.floor(Math.random() * 30), // 修改为更小的随机延迟
             executablePath: storeBrowserPath,
             args: args,
-            ignoreDefaultArgs: getChromiumIgnoreDefaultArgs()
+            ignoreDefaultArgs
         });
         
         browserMap.set(key, browser);
@@ -1563,16 +1586,16 @@ export async function initPlatform(){
         // }
         let storeBrowserPath = await getChromePath();
 
-        // 设置环境变量来阻止 Playwright 自动添加 --no-sandbox
-        configurePlaywrightSandboxEnv();
+        const { disableSandbox, headless, sandboxArgs, ignoreDefaultArgs } = getChromiumLaunchOptions();
+        configurePlaywrightSandboxEnv(disableSandbox);
 
         browser = await chromium.launch({
-            chromiumSandbox: !shouldDisableChromiumSandbox(),
-            headless: true,
+            chromiumSandbox: !disableSandbox,
+            headless,
             executablePath: storeBrowserPath,
             args: [
                 '--disable-accelerated-2d-canvas', '--disable-webgl', '--disable-software-rasterizer',
-                ...getChromiumSandboxArgs(),
+                ...sandboxArgs,
                 '--disable-dev-shm-usage',
                 // '--disable-gpu-sandbox',
                 '--no-first-run',
@@ -1586,7 +1609,7 @@ export async function initPlatform(){
                 '--allow-running-insecure-content',
                 '--disable-features=VizDisplayCompositor'
             ],
-            ignoreDefaultArgs: getChromiumIgnoreDefaultArgs()
+            ignoreDefaultArgs
          });
         const context = await browser.newContext();
         const page = await context.newPage();

@@ -11,8 +11,8 @@ export async function getEngineInstance(resourceId: string): Promise<EngineInsta
     if (engineInstances.has(resourceId)) {
         return engineInstances.get(resourceId)!;
     }
-    const engine = new EngineInstance(resourceId, false);
-    log.info("getEngineInstance headless is false");
+    const engine = new EngineInstance(resourceId);
+    log.info("getEngineInstance headless is", engine.headless);
     engineInstances.set(resourceId, engine);
     return engine;
 }
@@ -52,4 +52,3 @@ export async function getPage(resourceId: string, url: string): Promise<Page | u
     }
     return page;
 }
-
