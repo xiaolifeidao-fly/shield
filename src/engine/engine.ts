@@ -127,6 +127,39 @@ function getChromePath(): string {
     }
 }
 
+function shouldDisableChromiumSandbox(): boolean {
+    return os.platform() === 'linux'
+        && typeof process.getuid === 'function'
+        && process.getuid() === 0;
+}
+
+function configurePlaywrightSandboxEnv() {
+    env['PLAYWRIGHT_CHROMIUM_USE_HEADLESS_NEW'] = 'true';
+    env['PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD'] = '0';
+    env['PLAYWRIGHT_DISABLE_SANDBOX'] = shouldDisableChromiumSandbox() ? 'true' : 'false';
+}
+
+function getChromiumSandboxArgs(): string[] {
+    if (shouldDisableChromiumSandbox()) {
+        return ['--no-sandbox', '--disable-setuid-sandbox'];
+    }
+
+    return ['--disable-sandbox=false', '--enable-sandbox'];
+}
+
+function getChromiumIgnoreDefaultArgs(): string[] {
+    const args = [
+        '--enable-automation',
+        '--enable-blink-features=IdleDetection'
+    ];
+
+    if (!shouldDisableChromiumSandbox()) {
+        args.push('--no-sandbox', '--disable-setuid-sandbox');
+    }
+
+    return args;
+}
+
 export abstract class DoorEngine<T = any> {
 
     protected chromePath: string | undefined;
@@ -154,8 +187,6 @@ export abstract class DoorEngine<T = any> {
     browserArgs : string[] = [
         // '--disable-accelerated-2d-canvas', '--disable-webgl',
          '--disable-software-rasterizer',
-        '--no-sandbox', // 取消沙箱，某些网站可能会检测到沙箱模式
-        '--disable-setuid-sandbox',
         '--disable-webrtc-encryption',
         '--disable-webrtc-hw-decoding',
         '--disable-webrtc-hw-encoding',
@@ -345,22 +376,17 @@ export abstract class DoorEngine<T = any> {
         // 只保留必要的环境变量，避免触发安全警告
         
         // 设置Playwright环境变量以避免自动添加--no-sandbox
-        env['PLAYWRIGHT_CHROMIUM_USE_HEADLESS_NEW'] = 'true'
-        env['PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD'] = '0'
-        // 添加更多环境变量来阻止自动添加 --no-sandbox
-        // env['PLAYWRIGHT_CHROMIUM_ARGS'] = '--disable-blink-features=AutomationControlled'  // 已过时
-        env['PLAYWRIGHT_DISABLE_SANDBOX'] = 'false'
+        configurePlaywrightSandboxEnv();
 
         const contextConfig: any = {
             headless: this.headless,
+            chromiumSandbox: !shouldDisableChromiumSandbox(),
             executablePath: storeBrowserPath,
             env : env,
             args: [
                 ...this.browserArgs,
                 `--window-size=${this.width},${this.height}`,
-                // 明确禁用沙箱相关参数
-                '--disable-sandbox=false',
-                '--enable-sandbox',
+                ...getChromiumSandboxArgs(),
                 '--disable-dev-shm-usage',
                 // '--disable-gpu-sandbox',
                 '--no-first-run',
@@ -375,11 +401,7 @@ export abstract class DoorEngine<T = any> {
                 '--disable-features=VizDisplayCompositor'
             ],
             ignoreDefaultArgs: [
-                '--enable-automation', 
-                // '--disable-blink-features=AutomationControlled',  // 禁用浏览器自动化控制特性 - 已过时
-                '--enable-blink-features=IdleDetection',
-                '--no-sandbox',  // 明确忽略 --no-sandbox
-                '--disable-setuid-sandbox'  // 明确忽略 --disable-setuid-sandbox
+                ...getChromiumIgnoreDefaultArgs()
             ],
             // extraHTTPHeaders: {
             //     'sec-ch-ua': getSecChUa(platform),
@@ -769,9 +791,7 @@ export abstract class DoorEngine<T = any> {
             args: [
                 ...this.browserArgs,
                 `--window-size=${this.width},${this.height}`,
-                // 明确禁用沙箱相关参数
-                '--disable-sandbox=false',
-                '--enable-sandbox',
+                ...getChromiumSandboxArgs(),
                 '--disable-dev-shm-usage',
                 // '--disable-gpu-sandbox',
                 '--no-first-run',
@@ -786,11 +806,7 @@ export abstract class DoorEngine<T = any> {
                 '--disable-features=VizDisplayCompositor'
             ],
             ignoreDefaultArgs: [
-                '--enable-automation', 
-                // '--disable-blink-features=AutomationControlled',  // 禁用浏览器自动化控制特性 - 已过时
-                '--enable-blink-features=IdleDetection',
-                '--no-sandbox',  // 明确忽略 --no-sandbox
-                '--disable-setuid-sandbox'  // 明确忽略 --disable-setuid-sandbox
+                ...getChromiumIgnoreDefaultArgs()
             ],
             // extraHTTPHeaders: {
             //     'sec-ch-ua': getSecChUa(platform),
@@ -849,9 +865,7 @@ export abstract class DoorEngine<T = any> {
         }
         
         // 设置环境变量来阻止 Playwright 自动添加 --no-sandbox
-        env['PLAYWRIGHT_CHROMIUM_USE_HEADLESS_NEW'] = 'true'
-        env['PLAYWRIGHT_DISABLE_SANDBOX'] = 'false'
-        // env['PLAYWRIGHT_CHROMIUM_ARGS'] = '--disable-blink-features=AutomationControlled'  // 已过时
+        configurePlaywrightSandboxEnv();
         
         // 使用固定的窗口尺寸，避免跳来跳去
         const windowWidth = this.width || 600;
@@ -862,9 +876,7 @@ export abstract class DoorEngine<T = any> {
         const args = [
             ...this.browserArgs,
             `--window-size=${windowWidth},${windowHeight}`,
-            // 明确禁用沙箱相关参数
-            '--disable-sandbox=false',
-            '--enable-sandbox',
+            ...getChromiumSandboxArgs(),
             '--disable-dev-shm-usage',
             // '--disable-gpu-sandbox',
             '--no-first-run',
@@ -880,16 +892,12 @@ export abstract class DoorEngine<T = any> {
         ];
         
         const browser = await chromium.launch({
+            chromiumSandbox: !shouldDisableChromiumSandbox(),
             headless: this.headless,
             slowMo: 15 + Math.floor(Math.random() * 30), // 修改为更小的随机延迟
             executablePath: storeBrowserPath,
             args: args,
-            ignoreDefaultArgs: [
-                '--enable-automation',
-                '--enable-blink-features=IdleDetection',
-                '--no-sandbox',  // 明确忽略 --no-sandbox
-                '--disable-setuid-sandbox'  // 明确忽略 --disable-setuid-sandbox
-            ]
+            ignoreDefaultArgs: getChromiumIgnoreDefaultArgs()
         });
         
         browserMap.set(key, browser);
@@ -1556,21 +1564,15 @@ export async function initPlatform(){
         let storeBrowserPath = await getChromePath();
 
         // 设置环境变量来阻止 Playwright 自动添加 --no-sandbox
-        env['PLAYWRIGHT_CHROMIUM_USE_HEADLESS_NEW'] = 'true'
-        env['PLAYWRIGHT_DISABLE_SANDBOX'] = 'false'
-        // env['PLAYWRIGHT_CHROMIUM_ARGS'] = '--disable-blink-features=AutomationControlled'  // 已过时
+        configurePlaywrightSandboxEnv();
 
         browser = await chromium.launch({
+            chromiumSandbox: !shouldDisableChromiumSandbox(),
             headless: true,
             executablePath: storeBrowserPath,
             args: [
                 '--disable-accelerated-2d-canvas', '--disable-webgl', '--disable-software-rasterizer',
-                // '--no-sandbox', // 取消沙箱，某些网站可能会检测到沙箱模式
-                // '--disable-setuid-sandbox',
-                // '--disable-blink-features=AutomationControlled',  // 禁用浏览器自动化控制特性 - 已过时
-                // 明确禁用沙箱相关参数
-                '--disable-sandbox=false',
-                '--enable-sandbox',
+                ...getChromiumSandboxArgs(),
                 '--disable-dev-shm-usage',
                 // '--disable-gpu-sandbox',
                 '--no-first-run',
@@ -1584,12 +1586,7 @@ export async function initPlatform(){
                 '--allow-running-insecure-content',
                 '--disable-features=VizDisplayCompositor'
             ],
-            ignoreDefaultArgs: [
-                '--enable-automation',
-                '--enable-blink-features=IdleDetection',
-                '--no-sandbox',  // 明确忽略 --no-sandbox
-                '--disable-setuid-sandbox'  // 明确忽略 --disable-setuid-sandbox
-            ]
+            ignoreDefaultArgs: getChromiumIgnoreDefaultArgs()
          });
         const context = await browser.newContext();
         const page = await context.newPage();
