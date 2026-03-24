@@ -332,7 +332,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
   async getCasePage(params: CasePageParams): Promise<CasePageResponse<SingaCase>> {
     const { pageNum = 1, pageSize = 20 } = params;
-    
+
     const user = this.getCurrentUser();
     if (!user || !user.username) {
       throw new Error('未找到当前用户信息');
@@ -341,10 +341,60 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
     // resourceId = username + businessType
     const resourceId = `${user.username}_${user.businessType || 'singa'}`;
 
+    // 支持的页面类型
+    const types = ["need_follow_up", "followed_up_task"];
+
+    // 存储所有类型的 case
+    let allCases: SingaCase[] = [];
+    let totalCount = 0;
+
+    for (const caseType of types) {
+      try {
+        const cases = await this.fetchCasePageByType(resourceId, caseType, pageNum, pageSize);
+        if (cases.records && cases.records.length > 0) {
+          allCases = allCases.concat(cases.records);
+          totalCount += cases.total || cases.records.length;
+        }
+      } catch (error) {
+        log.warn(`获取 ${caseType} 类型案例失败:`, error);
+      }
+    }
+
+    // 返回合并后的结果
+    const response: CasePageResponse<SingaCase> = {
+      records: allCases as SingaCase[],
+      total: totalCount,
+      size: pageSize,
+      current: pageNum,
+      orders: [],
+      optimizeCountSql: false,
+      searchCount: true,
+      countId: null,
+      maxLimit: null,
+      pages: Math.ceil(totalCount / pageSize),
+    };
+
+    return response;
+  }
+
+  /**
+   * 根据类型获取案例页面
+   */
+  private async fetchCasePageByType(
+    resourceId: string,
+    caseType: string,
+    pageNum: number,
+    pageSize: number
+  ): Promise<CasePageResponse<SingaCase>> {
+    const user = this.getCurrentUser();
+    if (!user || !user.username) {
+      throw new Error('未找到当前用户信息');
+    }
+
     let page;
     try {
       // 初始化页面
-      const url = 'https://col.singa.id/loan-collection/assign/need-follow-up?page=' + pageNum + "&pageSize=1000";
+      const url = `https://col.singa.id/loan-collection/assign/${caseType}?page=${pageNum}&pageSize=1000`;
       page = await getPage(resourceId, url) as unknown as Page;
       if (!page) {
         throw new Error('无法初始化页面');
@@ -829,7 +879,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
       return response;
     } catch (error) {
-      log.error('getCasePage error:', error);
+      log.error(`fetchCasePageByType error for ${caseType}:`, error);
       throw error;
     } finally {
       // 注意：这里不关闭引擎，因为引擎可能被重用
