@@ -65,9 +65,16 @@ function getUserSyncCache(username: string, businessType: BusinessType): SyncCac
 /**
  * 保存用户的同步缓存（基于 username + businessType）
  */
-function saveUserSyncCache(username: string, businessType: BusinessType, cache: SyncCache): void {
+async function saveUserSyncCache(username: string, businessType: BusinessType, cache: SyncCache): Promise<void> {
   const cacheKey = `sync_cache_${username}_${businessType}`;
-  setGlobal(cacheKey, cache);
+  try {
+    await setGlobal(cacheKey, cache);
+    log.debug(`Saved sync cache for ${username}_${businessType}: ${Object.keys(cache).length} entries`);
+  } catch (error) {
+    log.error(`Failed to save sync cache for ${username}_${businessType}:`, error);
+    // 抛出错误让调用者感知
+    throw error;
+  }
 }
 
 /**
@@ -313,7 +320,7 @@ export abstract class BaseCaseSyncService {
       // 如果启用去重，更新缓存
       if (enableDeduplication) {
         updateCache(cache, caseItem.caseId);
-        saveUserSyncCache(username, businessType, cache);
+        await saveUserSyncCache(username, businessType, cache);
       }
 
       stats.successCount++;

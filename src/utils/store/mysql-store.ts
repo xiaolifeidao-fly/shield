@@ -139,19 +139,23 @@ export function getConfig(instanceKey: string, key: string): any {
   return cache.get(key);
 }
 
-export function setConfig(instanceKey: string, key: string, value: any): void {
+export function setConfig(instanceKey: string, key: string, value: any): Promise<void> {
   const cache = getInstanceCache(instanceKey);
   cache.set(key, value);
 
   const instance = instanceKey || DEFAULT_INSTANCE_KEY;
   const serialized = serializeValue(value);
-  void getPool()
+  return getPool()
     .query(
       'INSERT INTO shield_global_kv (instance_key, config_key, config_value) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE config_value = VALUES(config_value)',
       [instance, key, serialized]
     )
+    .then(() => {
+      // 写入成功，返回 undefined
+    })
     .catch((err) => {
       log.error('Failed to persist config value to MySQL', err);
+      throw err; // 抛出错误让调用者感知
     });
 }
 

@@ -227,8 +227,8 @@ export function getGlobal(key: string): any {
  * 设置全局配置（使用默认实例）
  * 新增/更新的数据只写入 MySQL
  */
-export function setGlobal(key: string, value: any): void {
-  setMysqlConfig(getDefaultInstanceKey(), key, value);
+export function setGlobal(key: string, value: any): Promise<void> {
+  return setMysqlConfig(getDefaultInstanceKey(), key, value);
 }
 
 /**
