@@ -5,13 +5,16 @@ import { UserInfo, BusinessType } from '@model/user.types';
 import { getCurrentUser, setCurrentUser, writeCaseInstance } from '../../adapundi/api/adapundi.axios';
 import { EngineInstance } from '@src/engine/engine.instance';
 import log from '../../../utils/logger';
-import { getPage } from '@src/business/common/engine.manager';
+import { getPage, getEngineInstance } from '@src/business/common/engine.manager';
 import { Page } from 'playwright-core';
 import { login as singaLogin } from './login.api';
 import { writeCase } from '@src/business/adapundi/api/writeCase.api';
 import { sleep } from '@utils/index';
 import { evaluateSerializedScript } from '@utils/page-eval';
 import { EXTRACT_CASE_PAGE_SCRIPT, EXTRACT_LOAN_DETAIL_SCRIPT } from './singa.page-scripts';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 /**
  * Singa Case 接口，扩展自 Case
@@ -90,6 +93,45 @@ export interface SingaCase extends Case {
  * TODO: 实现具体的 API 方法
  */
 export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
+
+  /**
+   * 检查是否存在有效的 session
+   * @param resourceId 资源ID
+   * @returns session 文件路径，如果不存在则返回 null
+   */
+  private checkSessionExists(resourceId: string): string | null {
+    const engineRootPath = process.env.USER_DATA_PATH
+      || process.env.SHIELD_ENGINE_ROOT_DIR
+      || path.join(os.homedir(), '.config', 'shield');
+    const sessionBasePath = process.env.SHIELD_ENGINE_SESSION_DIR
+      || path.join(engineRootPath, 'resource', 'session');
+    const namespace = 'instance_true'; // 与 engine.ts 中的 getNamespace 保持一致
+    const sessionDirPath = path.join(sessionBasePath, namespace, resourceId);
+
+    log.info(`[checkSessionExists] 检查 session 路径: ${sessionDirPath}`);
+
+    if (!fs.existsSync(sessionDirPath)) {
+      log.info(`[checkSessionExists] session 目录不存在`);
+      return null;
+    }
+
+    const files = fs.readdirSync(sessionDirPath).filter(file => file.endsWith('.json'));
+    if (files.length === 0) {
+      log.info(`[checkSessionExists] session 目录中没有 .json 文件`);
+      return null;
+    }
+
+    // 获取最新的 session 文件
+    const latestFile = files.sort((a, b) => {
+      const statA = fs.statSync(path.join(sessionDirPath, a));
+      const statB = fs.statSync(path.join(sessionDirPath, b));
+      return statB.mtime.getTime() - statA.mtime.getTime();
+    })[0];
+
+    const sessionPath = path.join(sessionDirPath, latestFile);
+    log.info(`[checkSessionExists] 找到 session 文件: ${sessionPath}`);
+    return sessionPath;
+  }
 
   getLoanPlan(customerId: number): Promise<LoanPlan[]> {
     return Promise.resolve([]);
@@ -395,6 +437,19 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
     try {
       // 初始化页面
       const url = `https://col.singa.id/loan-collection/assign/${caseType}?page=${pageNum}&pageSize=1000`;
+
+      // 检查是否存在有效的 session，如果没有则先登录
+      // 注意：singaLogin 内部会保存 session，这里不需要再保存
+      const sessionPath = this.checkSessionExists(resourceId);
+      if (!sessionPath) {
+        log.info(`[fetchCasePageByType] 未找到有效 session，先执行登录流程`);
+        const loginResult = await singaLogin(user, url);
+        if (!loginResult.success) {
+          throw new Error(`登录失败: ${loginResult.message || '未知错误'}`);
+        }
+        log.info(`[fetchCasePageByType] 登录成功，session 已保存`);
+      }
+
       page = await getPage(resourceId, url) as unknown as Page;
       if (!page) {
         throw new Error('无法初始化页面');
@@ -405,8 +460,8 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
         log.warn('等待页面 domcontentloaded 超时');
       });
 
-      // 检查是否需要重新登录
-      // 如果当前 URL 包含登录页面，说明需要重新登录
+      // 检查是否需要重新登录（兜底逻辑，防止 session 失效）
+      // singaLogin 内部会保存 session，这里不需要再保存
       const currentUrl = page.url();
       log.info(`当前页面 URL: ${currentUrl}`);
       const loginUrl = 'https://col.singa.id/login';
@@ -421,12 +476,22 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
         if (!page) {
           throw new Error('登录后无法重新初始化页面');
         }
+        log.info(`[fetchCasePageByType] 重新登录成功，session 已保存`);
       }
 
       // 等待界面加载完成
       await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
         log.warn('页面加载超时');
       });
+
+      // 等待表格数据加载（异步加载）
+      try {
+        await page.waitForSelector('tbody tr[class^="assign-"]', { timeout: 10000 });
+        log.info('表格数据已加载');
+      } catch {
+        log.warn('等待表格数据超时，可能无数据或页面结构变化');
+      }
+
       const username = user.username;
       // 解析表格数据
       // 注意：page.evaluate 中的代码在浏览器环境中执行
@@ -469,9 +534,15 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
         });
 
         // 调试日志
+        // @ts-expect-error - document 在浏览器环境中存在
+        const tbody = document.querySelector('tbody');
+        // @ts-expect-error - document 在浏览器环境中存在
+        const allRows = document.querySelectorAll('tbody tr');
+        console.log('[Singa] tbody exists:', !!tbody);
+        console.log('[Singa] all rows count:', allRows.length);
+        console.log('[Singa] assign-rows count:', rows.length);
         console.log('[Singa] headerCells count:', headerCells.length);
         console.log('[Singa] headerMap:', JSON.stringify(headerMap));
-        console.log('[Singa] rows count:', rows.length);
         // @ts-expect-error - window 在浏览器环境中存在
         console.log('[Singa] current URL:', window.location.href);
 

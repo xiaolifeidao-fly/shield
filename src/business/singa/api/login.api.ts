@@ -1,5 +1,5 @@
 import { UserInfo } from '@model/user.types';
-import { getPage } from '@src/business/common/engine.manager';
+import { getPage, getEngineInstance } from '@src/business/common/engine.manager';
 import { Page } from 'playwright-core';
 import log from '../../../utils/logger';
 
@@ -73,6 +73,17 @@ export async function login(userInfo: UserInfo, oriUrl : string): Promise<LoginR
 
     if (!currentUrl.includes('col.singa.id/login')) {
       log.info(`Singa 登录成功: ${username}`);
+
+      // 登录成功后保存 session，下次可以直接复用
+      try {
+        const engine = await getEngineInstance(resourceId);
+        await engine.saveContextState();
+        log.info(`Singa 登录 session 已保存: ${resourceId}`);
+      } catch (sessionError) {
+        log.warn(`Singa 登录成功但保存 session 失败:`, sessionError);
+        // 保存 session 失败不影响登录成功状态
+      }
+
       return {
         success: true,
         message: '登录成功'
