@@ -400,9 +400,15 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
         throw new Error('无法初始化页面');
       }
 
+      // 等待页面导航完成（处理未登录时的重定向）
+      await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => {
+        log.warn('等待页面 domcontentloaded 超时');
+      });
+
       // 检查是否需要重新登录
       // 如果当前 URL 包含登录页面，说明需要重新登录
       const currentUrl = page.url();
+      log.info(`当前页面 URL: ${currentUrl}`);
       const loginUrl = 'https://col.singa.id/login';
       if (currentUrl.includes('/login') || currentUrl === loginUrl) {
         log.info('检测到需要重新登录，开始执行登录流程');
@@ -461,6 +467,13 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
           const text = th.textContent?.trim().toUpperCase();
           if (text) headerMap[text] = index;
         });
+
+        // 调试日志
+        console.log('[Singa] headerCells count:', headerCells.length);
+        console.log('[Singa] headerMap:', JSON.stringify(headerMap));
+        console.log('[Singa] rows count:', rows.length);
+        // @ts-expect-error - window 在浏览器环境中存在
+        console.log('[Singa] current URL:', window.location.href);
 
         rows.forEach((row: any, index: number) => {
           try {
