@@ -14,7 +14,8 @@ class ScheduledTaskManager {
     private systemImpl: SystemImpl;
     private userImpl: UserImpl;
     // 支持的业务类型；初始化/重调度时仅这些类型会被自动跑任务
-    private readonly businessTypes: BusinessType[] = ['adapundi', 'SINGA', 'KAT', 'KLIKKAMI'];
+    // 当前分支只跑 SINGA
+    private readonly businessTypes: BusinessType[] = ['SINGA'];
 
     constructor() {
         this.systemImpl = new SystemImpl();
