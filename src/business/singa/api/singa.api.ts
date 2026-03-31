@@ -393,9 +393,9 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
     for (const caseType of types) {
       try {
         const cases = await this.fetchCasePageByType(resourceId, caseType, pageNum, pageSize);
+        totalCount += cases.total || 0;
         if (cases.records && cases.records.length > 0) {
           allCases = allCases.concat(cases.records);
-          totalCount += cases.total || cases.records.length;
         }
       } catch (error) {
         log.warn(`获取 ${caseType} 类型案例失败:`, error);
