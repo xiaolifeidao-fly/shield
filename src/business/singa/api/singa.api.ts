@@ -5,7 +5,7 @@ import { UserInfo, BusinessType } from '@model/user.types';
 import { getCurrentUser, setCurrentUser, writeCaseInstance } from '../../adapundi/api/adapundi.axios';
 import { EngineInstance } from '@src/engine/engine.instance';
 import log from '../../../utils/logger';
-import { getPage, getEngineInstance } from '@src/business/common/engine.manager';
+import { getPage } from '@src/business/common/engine.manager';
 import { Page } from 'playwright-core';
 import { login as singaLogin } from './login.api';
 import { writeCase } from '@src/business/adapundi/api/writeCase.api';
@@ -95,9 +95,44 @@ export interface SingaCase extends Case {
 export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
   /**
-   * 检查是否存在有效的 session
+   * 检查 session 文件中的 cookies 是否过期（Singa 专用）
+   * 过期条件：1) Cookie 本身过期  2) 文件创建超过 2 天
+   * @param sessionPath session 文件路径
+   * @returns true 如果有效，false 如果已过期
+   */
+  private isSessionValid(sessionPath: string): boolean {
+    try {
+      const content = fs.readFileSync(sessionPath, 'utf-8');
+      const sessionData = JSON.parse(content);
+      if (!sessionData.cookies || !Array.isArray(sessionData.cookies)) {
+        return false;
+      }
+      // 检查 session 文件是否超过 2 天
+      const sessionMtime = fs.statSync(sessionPath).mtime.getTime();
+      const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+      const nowMs = Date.now();
+      if (nowMs - sessionMtime > twoDaysMs) {
+        log.info(`[isSessionValid] Session 文件已超过 2 天有效期: ${sessionPath}`);
+        return false;
+      }
+      const now = nowMs / 1000;
+      for (const cookie of sessionData.cookies) {
+        if (cookie.expires !== -1 && cookie.expires < now) {
+          log.info(`[isSessionValid] Cookie 已过期: ${cookie.name}, expires: ${cookie.expires}, now: ${now}`);
+          return false;
+        }
+      }
+      return true;
+    } catch (error) {
+      log.warn(`[isSessionValid] 检查 session 有效性失败: ${sessionPath}`, error);
+      return false;
+    }
+  }
+
+  /**
+   * 检查是否存在有效的 session（Singa 专用）
    * @param resourceId 资源ID
-   * @returns session 文件路径，如果不存在则返回 null
+   * @returns session 文件路径，如果不存在或已过期则返回 null
    */
   private checkSessionExists(resourceId: string): string | null {
     const engineRootPath = process.env.USER_DATA_PATH
@@ -105,7 +140,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
       || path.join(os.homedir(), '.config', 'shield');
     const sessionBasePath = process.env.SHIELD_ENGINE_SESSION_DIR
       || path.join(engineRootPath, 'resource', 'session');
-    const namespace = 'instance_true'; // 与 engine.ts 中的 getNamespace 保持一致
+    const namespace = 'instance_true';
     const sessionDirPath = path.join(sessionBasePath, namespace, resourceId);
 
     log.info(`[checkSessionExists] 检查 session 路径: ${sessionDirPath}`);
@@ -121,16 +156,31 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
       return null;
     }
 
-    // 获取最新的 session 文件
-    const latestFile = files.sort((a, b) => {
+    // 按修改时间排序，获取最新的
+    const sortedFiles = files.sort((a, b) => {
       const statA = fs.statSync(path.join(sessionDirPath, a));
       const statB = fs.statSync(path.join(sessionDirPath, b));
       return statB.mtime.getTime() - statA.mtime.getTime();
-    })[0];
+    });
 
-    const sessionPath = path.join(sessionDirPath, latestFile);
-    log.info(`[checkSessionExists] 找到 session 文件: ${sessionPath}`);
-    return sessionPath;
+    // 查找第一个有效的 session（优先选最新的，但检查过期时间）
+    for (const file of sortedFiles) {
+      const filePath = path.join(sessionDirPath, file);
+      if (this.isSessionValid(filePath)) {
+        log.info(`[checkSessionExists] 找到有效 session 文件: ${filePath}`);
+        return filePath;
+      }
+      // 删除已过期的 session 文件
+      try {
+        fs.unlinkSync(filePath);
+        log.info(`[checkSessionExists] 已删除过期的 session 文件: ${filePath}`);
+      } catch (deleteError) {
+        log.warn(`[checkSessionExists] 删除过期 session 文件失败: ${filePath}`, deleteError);
+      }
+    }
+
+    log.info(`[checkSessionExists] 没有有效的 session 文件`);
+    return null;
   }
 
   getLoanPlan(customerId: number): Promise<LoanPlan[]> {
