@@ -12,7 +12,7 @@ export async function getEngineInstance(resourceId: string): Promise<EngineInsta
         return engineInstances.get(resourceId)!;
     }
     const engine = new EngineInstance(resourceId);
-    log.info("getEngineInstance headless is false");
+    log.info("getEngineInstance headless is", engine.headless);
     engineInstances.set(resourceId, engine);
     return engine;
 }

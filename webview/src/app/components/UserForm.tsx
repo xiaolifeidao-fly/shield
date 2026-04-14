@@ -45,8 +45,7 @@ const UserForm: React.FC<UserFormProps> = ({ form, editingUser }) => {
         rules={[{ required: true, message: 'Please select business type' }]}
       >
         <Select placeholder="Select business type">
-          <Select.Option value="adapundi">Adapundi</Select.Option>
-          <Select.Option value="SINGA">SIGINT</Select.Option>
+          <Select.Option value="simba">SIMBA</Select.Option>
         </Select>
       </Form.Item>
       <Form.Item

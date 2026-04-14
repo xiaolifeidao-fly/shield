@@ -9,7 +9,7 @@ import UserManagement from './components/UserManagement';
 
 const { Content } = Layout;
 
-type BusinessType = 'adapundi' | 'SINGA';
+type BusinessType = 'simba';
 
 export default function Home() {
   const [activeTab] = useState<string>('user');
@@ -154,8 +154,7 @@ export default function Home() {
               onChange={handleBusinessTypeChange}
               allowClear
             >
-              <Select.Option value="adapundi">Adapundi</Select.Option>
-              <Select.Option value="SINGA">SIGINT</Select.Option>
+              <Select.Option value="simba">SIMBA</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item

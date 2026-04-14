@@ -13,7 +13,7 @@ class ScheduledTaskManager {
     private timers: Map<BusinessType, NodeJS.Timeout> = new Map();
     private systemImpl: SystemImpl;
     private userImpl: UserImpl;
-    private readonly businessTypes: BusinessType[] = ['adapundi', 'SINGA'];
+    private readonly businessTypes: BusinessType[] = ['simba'];
 
     constructor() {
         this.systemImpl = new SystemImpl();
