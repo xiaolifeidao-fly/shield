@@ -1625,7 +1625,13 @@ export async function getPlatform(){
     const chromeVersion = process.env.CHROME_VERSION || '1169';
     const browserPlatform = await getGlobal("browserPlatform_" + chromeVersion);
     if(browserPlatform){
-        return JSON.parse(browserPlatform);
+        try {
+            return JSON.parse(browserPlatform);
+        } catch (e) {
+            // 数据损坏，清除并返回 undefined
+            log.warn("browserPlatform data corrupted, clearing:", browserPlatform);
+            return undefined;
+        }
     }
     return undefined;
 }

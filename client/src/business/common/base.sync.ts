@@ -259,20 +259,13 @@ export abstract class BaseCaseSyncService {
    */
   protected async syncSingleCase(
     username: string,
+    businessType: BusinessType,
     caseItem: Case,
     cache: SyncCache,
     stats: SyncStats,
     enableDeduplication: boolean = true,
   ): Promise<boolean> {
-    // 获取用户的 businessType
-    const userInfo = getUserInfo(username);
-    const businessType = userInfo?.businessType;
-    
-    if (!businessType) {
-      log.error(`Failed to get businessType for user ${username}`);
-      stats.failCount++;
-      return false;
-    }
+    // businessType 直接从参数获取，不再从 getUserInfo 查询
 
     if (enableDeduplication && !shouldSync(cache, caseItem.caseId)) {
       log.info(`syncSingleCase skip case: ${caseItem.caseId} because it has been synced today`);
@@ -387,6 +380,7 @@ export abstract class BaseCaseSyncService {
    */
   protected async syncPageCases(
     username: string,
+    businessType: BusinessType,
     totalNum: number,
     records: Case[],
     cache: SyncCache,
@@ -404,7 +398,7 @@ export abstract class BaseCaseSyncService {
       if(stats.incrementNum >= totalNum) {
         stats.totalCount = stats.incrementNum;
       }
-      await this.syncSingleCase(username, caseItem, cache, stats, enableDeduplication);
+      await this.syncSingleCase(username, businessType, caseItem, cache, stats, enableDeduplication);
     }
     return false;
   }
@@ -483,7 +477,7 @@ export abstract class BaseCaseSyncService {
         }
 
 
-        const stopped = await this.syncPageCases(username, pageResponse.total, pageResponse.records, cache, stats, enableDeduplication);
+        const stopped = await this.syncPageCases(username, businessType, pageResponse.total, pageResponse.records, cache, stats, enableDeduplication);
         
         stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
         saveUserSyncStats(username, stats);
