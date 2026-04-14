@@ -53,7 +53,7 @@ export async function login(userInfo: UserInfo, oriUrl: string): Promise<LoginRe
     log.info('等待用户手动登录 Simba...');
 
     await page.waitForURL(
-      (url) => !url.href.includes('#/login') && !url.endsWith('/login'),
+      (url) => !url.href.includes('#/login') && !url.href.endsWith('/login'),
       { timeout: 300000 } // 5 分钟超时
     );
 
