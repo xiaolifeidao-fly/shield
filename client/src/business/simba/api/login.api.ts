@@ -9,15 +9,16 @@ import log from 'electron-log';
 export interface LoginResponse {
   success: boolean;
   message?: string;
+  cookie?: string;
 }
 
 /**
  * Simba 用户登录接口
  * 使用半自动登录模式：打开浏览器窗口让用户手动输入凭据
- * 等待用户登录成功后自动继续执行
+ * 登录成功后提取 cookie
  * @param userInfo 用户信息
- * @param oriUrl 原始目标 URL（登录成功后跳转）
- * @returns 登录响应（包含是否成功）
+ * @param oriUrl 原始目标 URL
+ * @returns 登录响应（包含 cookie）
  */
 export async function login(userInfo: UserInfo, oriUrl: string): Promise<LoginResponse> {
   const { username } = userInfo;
@@ -29,7 +30,6 @@ export async function login(userInfo: UserInfo, oriUrl: string): Promise<LoginRe
     };
   }
 
-  // resourceId = username + businessType
   const resourceId = `${username}_simba`;
   const loginUrl = 'https://collection.cairin.id/#/login';
 
@@ -49,7 +49,6 @@ export async function login(userInfo: UserInfo, oriUrl: string): Promise<LoginRe
     log.info(`Simba 登录页面加载完成: ${page.url()}`);
 
     // 2. 等待用户手动登录
-    // 等待 URL 从 #/login 变化，最多等待 5 分钟
     log.info('等待用户手动登录 Simba...');
 
     await page.waitForURL(
@@ -60,15 +59,21 @@ export async function login(userInfo: UserInfo, oriUrl: string): Promise<LoginRe
     // 3. 等待一段时间确保页面完全加载
     await page.waitForTimeout(2000);
 
-    // 4. 检查当前 URL
     const currentUrl = page.url();
     log.info(`Simba 登录后当前URL: ${currentUrl}`);
 
     if (!currentUrl.includes('#/login') && !currentUrl.endsWith('/login')) {
       log.info(`Simba 登录成功: ${username}`);
+
+      // 提取 cookie
+      const cookies = await page.context().cookies();
+      const cookieString = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      log.info(`Simba cookie: ${cookieString}`);
+
       return {
         success: true,
-        message: '登录成功'
+        message: '登录成功',
+        cookie: cookieString
       };
     } else {
       log.warn(`Simba 登录失败: 未知错误，当前URL: ${currentUrl}`);

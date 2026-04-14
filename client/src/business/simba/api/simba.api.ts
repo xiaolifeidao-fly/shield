@@ -4,77 +4,49 @@ import { CasePageParams, CasePageResponse, CaseDetail, LoanPlan, CustomerInfo, C
 import { UserInfo, BusinessType } from '@eleapi/user/user.api';
 import { getCurrentUser, setCurrentUser } from '../../adapundi/api/adapundi.axios';
 import log from 'electron-log';
-import { getPage } from '@src/business/common/engine.manager';
-import { Page } from 'playwright-core';
 import { login as simbaLogin } from './login.api';
 import { writeCase } from '@src/business/adapundi/api/writeCase.api';
 
+const SIMBA_BASE_URL = 'https://collection.cairin.id';
+const SIMBA_API_BASE = `${SIMBA_BASE_URL}/xapi/v1`;
+
 /**
- * Simba Case 接口，扩展自 Case
- * TODO: 根据 Simba 平台实际字段扩展
+ * Simba Case 接口
  */
 export interface SimbaCase extends Case {
-  /** 订单号 (Order Number) */
   orderNumber?: string;
-
-  /** PTP 状态 (Promise to Pay) */
   ptpStatus?: string | null;
-
-  /** 其他平台活跃贷款数量 */
   otherPlatformActiveLoanCount?: number;
-
-  /** WA 号码 (WhatsApp Number) */
   waNumber?: string | null;
-
-  /** 邮箱 (Email) */
   email?: string | null;
-
-  /** DPD (Days Past Due) - 逾期天数 */
   dpd?: number;
-
-  /** 催收等级 (Collection Level) */
   collectionLevel?: string | null;
-
-  /** 罚金金额 (Penalty Amount) */
   penaltyAmount?: number;
-
-  /** 当前应还金额 (Current Due Amount) */
   currentDueAmount?: number;
-
-  /** 还款金额 (Repayment Amount) */
   repaymentAmount?: number;
-
-  /** 剩余金额 (Remaining Amount) */
   remainingAmount?: number;
-
-  /** 敏感度 (Sensitivity) */
   sensitivity?: string | null;
-
-  /** WA 意向等级 (WA Intention Level) */
   waIntentionLevel?: string | null;
-
-  /** 计划 (Plan) */
   plan?: string | null;
-
-  /** 分配人 (Assigned By) */
   assignedBy?: string | null;
-
-  /** 分配时间 (Assigned At) */
   assignedAt?: string | null;
-
-  /** 最后跟进时间 (Last Followed Up Date) */
   lastFollowedUpDate?: string | null;
+  // fieldJson 字段
+  bankName?: string | null;
+  collectorName?: string | null;
+  productName?: string | null;
+  principleAmountOriginal?: string | null;
+  interestAmount?: number;
+  principleAmountDue?: number;
+  interestDue?: number;
+  totalAmountDue?: number;
 }
 
-// TODO: 根据 Simba 实际 URL 结构调整
-const SIMBA_BASE_URL = 'https://collection.cairin.id';
-const SIMBA_LOGIN_URL = `${SIMBA_BASE_URL}/#/login`;
-
-/**
- * Simba 业务 API 实现
- * TODO: 根据 Simba 平台实际页面结构实现具体方法
- */
 export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
+  private cookie: string | null = null;
+
+  // 存储当前用户信息用于登录
+  private currentUserInfo: UserInfo | null = null;
 
   getLoanPlan(customerId: number): Promise<LoanPlan[]> {
     return Promise.resolve([]);
@@ -115,80 +87,11 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
   }
 
   async getLoanDetail(caseId: string): Promise<LoanDetail | null> {
-    if (!caseId) {
-      log.warn('Simba 获取贷款详情失败: caseId 为空');
-      return null;
-    }
-
-    const user = this.getCurrentUser();
-    if (!user || !user.username) {
-      log.error('Simba 获取贷款详情失败: 未找到当前用户信息');
-      return null;
-    }
-
-    const resourceId = `${user.username}_simba`;
-    const detailUrl = `${SIMBA_BASE_URL}/#/detail/${caseId}`;
-
-    try {
-      let page = await getPage(resourceId, detailUrl) as unknown as Page;
-      if (!page) {
-        throw new Error('无法初始化详情页面');
-      }
-
-      const currentUrl = page.url();
-      if (currentUrl.includes('#/login') || currentUrl.includes('/login')) {
-        const loginResult = await simbaLogin(user, detailUrl);
-        if (!loginResult.success) {
-          log.error(`Simba 登录失败，无法获取贷款详情: ${loginResult.message || '未知错误'}`);
-          return null;
-        }
-
-        page = await getPage(resourceId, detailUrl) as unknown as Page;
-        if (!page) {
-          throw new Error('登录后无法初始化详情页面');
-        }
-      }
-
-      await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {
-        log.warn(`Simba 贷款详情页面加载 domcontentloaded 超时: ${caseId}`);
-      });
-
-      const loanDetail: LoanDetail = {
-        id: 0,
-        loanType: '',
-        status: '',
-        loanSubType: '',
-        amount: 0,
-        interestRate: 0,
-        duration: '',
-        period: 0,
-        periodsNumber: 0,
-        periodUnit: '',
-        dueAmount: 0,
-        minDueDate: null,
-        overdueDays: 0,
-        gracePeriodRate: 0,
-        collectionLevel: null,
-        principalAmount: 0,
-        interestAmount: 0,
-        defaultAmount: 0,
-        vatAmount: 0,
-        shouldRepaymentAmount: 0,
-        creditQuality: '',
-        platform: '',
-        rolloverType: null,
-        esignFlag: false,
-      };
-
-      return loanDetail;
-    } catch (error) {
-      log.error(`Simba 获取贷款详情异常 caseId=${caseId}`, error);
-      return null;
-    }
+    return null;
   }
 
   async getCaseDetail(product: string, caseItem: SimbaCase): Promise<CaseDetail> {
-    const caseDetail: CaseDetail = {
+    return {
       id: caseItem.id,
       caseId: caseItem.caseId || '',
       trigger: caseItem.trigger || null,
@@ -216,7 +119,7 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
       installmentBillId: null,
       customerClikInfo: null,
       vaList: null,
-      tadpoleCount: caseItem.otherPlatformActiveLoanCount !== undefined ? String(caseItem.otherPlatformActiveLoanCount) : '0',
+      tadpoleCount: '0',
       tadpoleAmount: '0',
       riskScoreAndLevel: caseItem.riskGrade || null,
       amount: caseItem.amount || 0,
@@ -235,21 +138,6 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
       whatsUpNum: caseItem.waNumber || null,
       loanAmount: null,
     };
-    try {
-      const loanDetail = await this.getLoanDetail(caseDetail.caseId);
-      if (loanDetail && loanDetail.amount > 0) {
-        caseDetail.loanAmount = loanDetail.amount;
-        if (!caseDetail.principleAmount) {
-          caseDetail.principleAmount = loanDetail.principalAmount;
-        }
-        if (!caseDetail.amount) {
-          caseDetail.loanAmount = loanDetail.amount;
-        }
-      }
-    } catch (error) {
-      log.warn(`Simba 案件详情补充贷款数据失败 caseId=${caseDetail.caseId}`, error);
-    }
-    return caseDetail;
   }
 
   getAxiosInstance(): AxiosInstance | null {
@@ -264,73 +152,117 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
     return getCurrentUser();
   }
 
+  private async ensureLogin(): Promise<boolean> {
+    const user = this.getCurrentUser();
+    if (!user) {
+      throw new Error('未找到当前用户信息');
+    }
+
+    // 如果已有 cookie，直接返回
+    if (this.cookie) {
+      return true;
+    }
+
+    // 执行登录获取 cookie
+    const loginResult = await simbaLogin(user, SIMBA_BASE_URL);
+    if (!loginResult.success) {
+      throw new Error(`登录失败: ${loginResult.message}`);
+    }
+
+    // 从登录结果获取 cookie
+    this.cookie = loginResult.cookie || '';
+    log.info(`Simba 获取到 cookie: ${this.cookie}`);
+    return true;
+  }
+
+  private async getCookieFromBrowser(): Promise<string | null> {
+    // 从 Playwright 浏览器上下文获取 cookie
+    return null;
+  }
+
   async getCasePage(params: CasePageParams): Promise<CasePageResponse<SimbaCase>> {
-    const { pageNum = 1, pageSize = 20, type = 'need_follow_up' } = params;
+    const { pageNum = 1, pageSize = 20 } = params;
 
     const user = this.getCurrentUser();
     if (!user || !user.username) {
       throw new Error('未找到当前用户信息');
     }
 
-    const resourceId = `${user.username}_simba`;
+    // 确保已登录
+    await this.ensureLogin();
 
-    let page;
     try {
-      let url: string;
-      if (type === 'followed_up_task') {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yyyy = yesterday.getFullYear();
-        const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
-        const dd = String(yesterday.getDate()).padStart(2, '0');
-        const assignAt = `${yyyy}-${mm}-${dd}`;
-        url = `${SIMBA_BASE_URL}/#/assign/already-follow-up?assign_at=${assignAt}&page=${pageNum}&pageSize=1000`;
-      } else {
-        url = `${SIMBA_BASE_URL}/#/assign/need-follow-up?page=${pageNum}&pageSize=1000`;
-      }
-
-      log.info(`Simba getCasePage: params=${JSON.stringify(params)}, type=${type}, url=${url}`);
-
-      page = await getPage(resourceId, url) as unknown as Page;
-      if (!page) {
-        throw new Error('无法初始化页面');
-      }
-
-      const currentUrl = page.url();
-      if (currentUrl.includes('#/login') || currentUrl.includes('/login') || currentUrl === SIMBA_LOGIN_URL) {
-        log.info('检测到需要重新登录，开始执行登录流程');
-        const loginResult = await simbaLogin(user, url);
-        if (!loginResult.success) {
-          throw new Error(`登录失败: ${loginResult.message || '未知错误'}`);
-        }
-        page = await getPage(resourceId, url) as unknown as Page;
-        if (!page) {
-          throw new Error('登录后无法重新初始化页面');
-        }
-      }
-
-      await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
-        log.warn('页面加载超时');
+      const response = await fetch(`${SIMBA_API_BASE}/cases/list`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': this.cookie || '',
+        },
+        body: JSON.stringify({
+          userId: 1803,
+          action: 1,
+          sortRule: 0,
+          searchLabel: 0,
+          limit: pageSize,
+          page: pageNum,
+          searchKeyParam: {},
+        }),
       });
 
-      let cases: SimbaCase[] = [];
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        cases = await page.evaluate(() => {
-          const result: SimbaCase[] = [];
-          return result;
-        }) as SimbaCase[];
-      } catch (error: any) {
-        log.error('page.evaluate failed:', error?.message || error);
-      }
+      const data = await response.json() as any;
+      log.info(`Simba getCasePage response: ${JSON.stringify(data)}`);
 
-      const casesArray = Array.isArray(cases) ? cases : [];
-      const total = casesArray.length >= pageSize ? casesArray.length * pageNum : casesArray.length;
-      const pages = Math.ceil(total / pageSize) || 1;
+      // 解析响应数据
+      const records: SimbaCase[] = (data.data?.list || []).map((item: any) => {
+        const fieldJson = item.fieldJson || {};
+        return {
+          id: item.id,
+          caseId: String(item.id),
+          fullName: item.name || '',
+          mobile: item.mobile || '',
+          customerId: item.id,
+          amount: item.amount || 0,
+          principleAmount: parseFloat(fieldJson.actualLoanAmount) || 0,
+          overdueDay: item.overdueDays || 0,
+          dpd: item.overdueDays || 0,
+          createTime: item.createTime ? new Date(item.createTime).toISOString() : new Date().toISOString(),
+          email: item.email || null,
+          // 从 fieldJson 提取更多字段
+          penaltyAmount: parseFloat(fieldJson.penaltyAmount) || 0,
+          currentDueAmount: parseFloat(fieldJson.dueAmount) || 0,
+          remainingAmount: parseFloat(fieldJson.remainingAmount) || 0,
+          bankName: fieldJson.bankName || null,
+          // 其他字段
+          customerSysTag: null,
+          channel1: fieldJson.channel1 || '',
+          channel2: fieldJson.channel2 || '',
+          level: null,
+          trigger: null,
+          collectorName: fieldJson.collectorName || null,
+          collectionLevel: fieldJson.collectionLevel || null,
+          waIntentionLevel: fieldJson.waIntentionLevel || null,
+          sensitivity: fieldJson.sensitivity || null,
+          productName: fieldJson.productName || null,
+          principleAmountOriginal: fieldJson.principleAmountOriginal || null,
+          interestAmount: fieldJson.interestAmount || 0,
+          principleAmountDue: fieldJson.principleAmountDue || 0,
+          interestDue: fieldJson.interestDue || 0,
+          totalAmountDue: fieldJson.totalAmountDue || 0,
+          distributedDay: fieldJson.distributedDay || null,
+          assignedBy: fieldJson.assignedBy || null,
+          assignedAt: fieldJson.assignedAt || null,
+          lastFollowedUpDate: fieldJson.lastFollowedUpDate || null,
+          waNumber: fieldJson.waNumber || null,
+          otherPlatformActiveLoanCount: fieldJson.otherPlatformActiveLoanCount || null,
+          ptpStatus: fieldJson.ptpStatus || null,
+        } as SimbaCase;
+      }) || [];
 
-      const response: CasePageResponse<SimbaCase> = {
-        records: casesArray as SimbaCase[],
-        total: total,
+      const total = data.data?.total || records.length;
+
+      return {
+        records,
+        total,
         size: pageSize,
         current: pageNum,
         orders: [],
@@ -338,11 +270,10 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
         searchCount: true,
         countId: null,
         maxLimit: null,
-        pages: pages,
+        pages: Math.ceil(total / pageSize) || 1,
       };
-      return response;
     } catch (error) {
-      log.error('getCasePage error:', error);
+      log.error('Simba getCasePage error:', error);
       throw error;
     }
   }
