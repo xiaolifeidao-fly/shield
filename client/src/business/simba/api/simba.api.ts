@@ -10,7 +10,10 @@ import { writeCase } from '@src/business/adapundi/api/writeCase.api';
 
 const SIMBA_BASE_URL = 'https://collection.cairin.id';
 const SIMBA_API_BASE = `${SIMBA_BASE_URL}/xapi/v1`;
-const FIRST_SYNC_KEY = 'simba_is_first_sync';
+
+function getFirstSyncKey(username: string): string {
+  return `simba_is_first_sync_${username}`;
+}
 
 /**
  * Simba Case 接口
@@ -277,12 +280,16 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
    * true: 增量同步
    */
   private getIsFirstSync(): boolean {
-    const value = getGlobal(FIRST_SYNC_KEY);
+    const user = this.getCurrentUser();
+    const username = user?.username || 'default';
+    const value = getGlobal(getFirstSyncKey(username));
     return value === true || value === 'true';
   }
 
   private setIsFirstSync(value: boolean): void {
-    setGlobal(FIRST_SYNC_KEY, value);
+    const user = this.getCurrentUser();
+    const username = user?.username || 'default';
+    setGlobal(getFirstSyncKey(username), value);
   }
 
   async getCasePage(params: CasePageParams): Promise<CasePageResponse<SimbaCase>> {
@@ -345,6 +352,7 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
           id: item.id,
           caseId: String(item.id),
           fullName: fieldJson.customerName || item.name || '',
+          product: fieldJson.productType || null,
           mobile: fieldJson.mobileNo || item.mobile || '',
           customerId: item.id,
           // amount 是总债务 (oTotalAmount)
