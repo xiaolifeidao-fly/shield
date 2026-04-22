@@ -1,10 +1,7 @@
 import { BaseCaseSyncService } from '../../common/base.sync';
 import { BaseBusinessApi } from '../../common/base.api';
-import { Case, CaseDetail, CustomerInfo, LoanPlan } from '@src/business/common/entities';
 import { BusinessType, SyncStats, UserInfo } from '@eleapi/user/user.api';
 import { releaseEngineInstance } from '@src/business/common/engine.manager';
-import { setGlobal } from '@utils/store/electron';
-import log from 'electron-log';
 
 /**
  * Simba 业务同步服务
@@ -26,6 +23,13 @@ export class SimbaCaseSyncService extends BaseCaseSyncService {
     params: { product?: string; enableDeduplication?: boolean; enableResume?: boolean; [key: string]: any } = {}
   ): Promise<SyncStats> {
     const stats = await super.syncUserCases(userInfo, params);
+
+    // 同步完成后标记首次同步完成
+    const simbaApi = this.businessApi as any;
+    if (simbaApi.markFirstSyncComplete) {
+      simbaApi.markFirstSyncComplete();
+    }
+
     return stats;
   }
 }
