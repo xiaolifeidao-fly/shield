@@ -228,8 +228,18 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
       throw new Error('未找到当前用户信息');
     }
 
-    // 如果已有 cookie，直接返回
+    const username = user.username;
+
+    // 如果实例中已有 cookie，直接返回
     if (this.cookie) {
+      return true;
+    }
+
+    // 尝试从持久化存储中读取 cookie
+    const savedCookie = getGlobal(`simba_cookie_${username}`);
+    if (savedCookie) {
+      this.cookie = String(savedCookie);
+      log.info(`Simba 从存储中读取 cookie: ${this.cookie}`);
       return true;
     }
 
@@ -239,8 +249,9 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
       throw new Error(`登录失败: ${loginResult.message}`);
     }
 
-    // 从登录结果获取 cookie
+    // 从登录结果获取 cookie 并持久化保存
     this.cookie = loginResult.cookie || '';
+    setGlobal(`simba_cookie_${username}`, this.cookie);
     log.info(`Simba 获取到 cookie: ${this.cookie}`);
     return true;
   }
@@ -333,7 +344,9 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
     }
 
     try {
-      const response = await fetch(`${SIMBA_API_BASE}/cases/list`, {
+      const requestUrl = `${SIMBA_API_BASE}/cases/list`;
+      log.info(`Simba getCasePage requestUrl=${requestUrl}, requestBody=${JSON.stringify(requestBody)}`);
+      const response = await fetch(requestUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -343,7 +356,8 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
       });
 
       const data = await response.json() as any;
-      log.info(`Simba getCasePage page=${pageNum} response total=${data.data?.total}`);
+      const previewRecords = (data.data?.list || []).slice(0, 3);
+      log.info(`Simba getCasePage requestUrl=${requestUrl}, requestBody=${JSON.stringify(requestBody)}, total=${data.data?.total}, previewRecords=${JSON.stringify(previewRecords)}`);
 
       // 解析响应数据
       const records: SimbaCase[] = (data.data?.list || []).map((item: any) => {
