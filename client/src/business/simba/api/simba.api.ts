@@ -4,6 +4,7 @@ import { CasePageParams, CasePageResponse, CaseDetail, LoanPlan, CustomerInfo, C
 import { UserInfo, BusinessType } from '@eleapi/user/user.api';
 import { getCurrentUser, setCurrentUser } from '../../adapundi/api/adapundi.axios';
 import { getGlobal, setGlobal } from '@utils/store/electron';
+import { mysqlStore } from '@utils/store/mysql.store';
 import log from 'electron-log';
 import { login as simbaLogin } from './login.api';
 import { writeCase } from '@src/business/adapundi/api/writeCase.api';
@@ -286,14 +287,15 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
   }
 
   /**
-   * 获取同步类型
+   * 获取同步类型（直接从 MySQL 读取，不走缓存）
    * false: 首次同步（全量）
    * true: 增量同步
    */
-  private getIsFirstSync(): boolean {
+  private async getIsFirstSync(): Promise<boolean> {
     const user = this.getCurrentUser();
     const username = user?.username || 'default';
-    const value = getGlobal(getFirstSyncKey(username));
+    const key = getFirstSyncKey(username);
+    const value = await mysqlStore.get(key);
     return value === true || value === 'true';
   }
 
@@ -316,7 +318,7 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
     await this.ensureLogin();
 
     // 判断同步类型
-    const isFirstSync = this.getIsFirstSync();
+    const isFirstSync = await this.getIsFirstSync();
     log.info(`Simba getCasePage isFirstSync=${isFirstSync}`);
 
     const requestBody: any = {
@@ -327,7 +329,7 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
     };
 
     // 如果不是首次同步，添加增量时间范围
-    if (isFirstSync) {
+    if (!isFirstSync) {
       const today = new Date();
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -437,7 +439,7 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
    * 标记首次同步完成
    */
   markFirstSyncComplete(): void {
-    this.setIsFirstSync(true);
+    this.setIsFirstSync(false);
     log.info('Simba 首次同步完成，已标记 isFirstSync=true');
   }
 
