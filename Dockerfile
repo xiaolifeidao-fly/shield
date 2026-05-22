@@ -9,6 +9,5 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 WORKDIR /app/program/shield
 COPY . .
 RUN npm install
-RUN npx playwright install --with-deps chromium
 RUN npm run build
 CMD ["npm","run","start"]

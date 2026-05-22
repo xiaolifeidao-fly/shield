@@ -434,7 +434,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
     const resourceId = `${user.username}_${user.businessType || 'singa'}`;
 
     // 支持的页面类型
-    const types = ["need-follow-up", "followed-up-task"];
+    const types = ["need-follow-up", "already-follow-up"];
 
     // 存储所有类型的 case
     let allCases: SingaCase[] = [];

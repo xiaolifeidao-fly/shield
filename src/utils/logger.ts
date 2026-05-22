@@ -43,9 +43,22 @@ class Logger {
     }
   }
 
+  private serializeArg(arg: any): any {
+    if (arg instanceof Error) {
+      return {
+        name: arg.name,
+        message: arg.message,
+        stack: arg.stack,
+        cause: (arg as any).cause ? this.serializeArg((arg as any).cause) : undefined,
+      };
+    }
+    return arg;
+  }
+
   private writeLog(level: string, message: string, ...args: any[]): void {
     const timestamp = new Date().toISOString();
-    const logMessage = `[${timestamp}] [${level}] ${message} ${args.length > 0 ? JSON.stringify(args) : ''}\n`;
+    const logArgs = args.length > 0 ? JSON.stringify(args.map((arg) => this.serializeArg(arg))) : '';
+    const logMessage = `[${timestamp}] [${level}] ${message} ${logArgs}\n`;
 
     // 写入文件
     fs.appendFileSync(this.logFile, logMessage, 'utf8');
@@ -85,4 +98,3 @@ class Logger {
 const logger = new Logger();
 
 export default logger;
-
