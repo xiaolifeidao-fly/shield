@@ -86,6 +86,13 @@ export const EXTRACT_CASE_PAGE_SCRIPT = String.raw`function (username) {
     return null;
   };
 
+  const getMaskedFieldText = (element) => {
+    if (!element) return '';
+    const unmask = element.getAttribute('data-unmask')?.trim();
+    if (unmask) return unmask;
+    return element.textContent?.trim() || '';
+  };
+
   const getCellIndex = (headerNames) => {
     const thead = document.querySelector('thead');
     if (thead) {
@@ -202,10 +209,14 @@ export const EXTRACT_CASE_PAGE_SCRIPT = String.raw`function (username) {
         }
       }
 
-      const mobile = row.querySelector('.borrowerPhone')?.textContent?.trim() || '';
-      const waNumber = row.querySelector('.borrowerWa')?.textContent?.trim() || null;
-      const waRemarkContent = row.querySelector('.open-wa-remark-modal')?.getAttribute('data-title') || null;
-      const email = row.querySelector('.borrowerEmail')?.textContent?.trim() || null;
+      const borrowerPhoneEl = row.querySelector('.borrowerPhone');
+      const borrowerWaEl = row.querySelector('.borrowerWa');
+      const waRemarkLink = row.querySelector('.open-wa-remark-modal');
+      const borrowerEmailEl = row.querySelector('.borrowerEmail');
+      const mobile = getMaskedFieldText(borrowerPhoneEl);
+      const waNumber = getMaskedFieldText(borrowerWaEl) || null;
+      const waRemarkContent = getMaskedFieldText(waRemarkLink) || waRemarkLink?.getAttribute('data-title') || null;
+      const email = getMaskedFieldText(borrowerEmailEl) || null;
       const product = row.querySelector('.product')?.textContent?.trim() || null;
 
       let overdueDay = 0;

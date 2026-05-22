@@ -572,6 +572,13 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
           }
           return null;
         };
+
+        const getMaskedFieldText = (element: any): string => {
+          if (!element) return '';
+          const unmask = element.getAttribute('data-unmask')?.trim();
+          if (unmask) return unmask;
+          return element.textContent?.trim() || '';
+        };
         // DOM元素无法被JSON序列化,改为记录有用信息
 
         // 构建表头文本 → 列索引映射（动态定位列，避免硬编码索引）
@@ -698,19 +705,19 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
 
             // 9. Phone - 电话
             const borrowerPhoneEl = row.querySelector('.borrowerPhone');
-            const mobile = borrowerPhoneEl?.textContent?.trim() || '';
+            const mobile = getMaskedFieldText(borrowerPhoneEl);
 
             // 10. WA - WhatsApp
             const borrowerWaEl = row.querySelector('.borrowerWa');
-            const waNumber = borrowerWaEl?.textContent?.trim() || null;
+            const waNumber = getMaskedFieldText(borrowerWaEl) || null;
 
             // WA Remark Content
             const waRemarkLink = row.querySelector('.open-wa-remark-modal');
-            const waRemarkContent = waRemarkLink?.getAttribute('data-title') || null;
+            const waRemarkContent = getMaskedFieldText(waRemarkLink) || waRemarkLink?.getAttribute('data-title') || null;
 
             // 11. Email - 邮箱
             const borrowerEmailEl = row.querySelector('.borrowerEmail');
-            const email = borrowerEmailEl?.textContent?.trim() || null;
+            const email = getMaskedFieldText(borrowerEmailEl) || null;
 
             // 12. Product - 产品
             const productEl = row.querySelector('.product');
