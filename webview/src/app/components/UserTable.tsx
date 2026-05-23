@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Table, Button, Popconfirm, Space, Progress, Typography, Tag, Tooltip, Dropdown, Spin } from 'antd';
-import { EditOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined, MoreOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined, MoreOutlined, ClearOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
 import { UserInfo, BusinessType, SyncStats } from './UserManagement.types';
@@ -17,6 +17,7 @@ interface UserTableProps {
   onDelete: (username: string) => void;
   onRun: (username: string) => void;
   onStop: (username: string) => void;
+  onClearCache: (username: string) => void;
 }
 
 const UserTable: React.FC<UserTableProps> = ({
@@ -27,6 +28,7 @@ const UserTable: React.FC<UserTableProps> = ({
   onDelete,
   onRun,
   onStop,
+  onClearCache,
 }) => {
   // 管理展开的行
   const [expandedRowKeys, setExpandedRowKeys] = useState<React.Key[]>([]);
@@ -135,6 +137,18 @@ const UserTable: React.FC<UserTableProps> = ({
             type: 'divider',
           },
           {
+            key: 'clearCache',
+            label: (
+              <span
+                onClick={() => onClearCache(record.username)}
+                style={{ cursor: 'pointer' }}
+              >
+                <ClearOutlined style={{ marginRight: 8 }} />
+                Clear Cache
+              </span>
+            ),
+          },
+          {
             key: 'delete',
             label: (
               <Popconfirm
@@ -206,6 +220,15 @@ const UserTable: React.FC<UserTableProps> = ({
                   size="small"
                   style={{ padding: '0 2px', minWidth: 'auto' }}
                   disabled={!isRunning}
+                />
+              </Tooltip>
+              <Tooltip title="Clear Cache">
+                <Button
+                  type="link"
+                  icon={<ClearOutlined />}
+                  onClick={() => onClearCache(record.username)}
+                  size="small"
+                  style={{ padding: '0 2px', minWidth: 'auto' }}
                 />
               </Tooltip>
               <Popconfirm

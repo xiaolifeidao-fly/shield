@@ -437,6 +437,17 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
   }
 
   /**
+   * 清除已保存的 cookie，下次同步会触发重新登录
+   */
+  clearSavedCookie(): void {
+    const user = this.getCurrentUser();
+    const username = user?.username || 'default';
+    setGlobal(`simba_cookie_${username}`, null);
+    this.cookie = null;
+    log.info(`Simba 已清除 cookie: simba_cookie_${username}`);
+  }
+
+  /**
    * 标记首次同步完成
    */
   markFirstSyncComplete(): void {

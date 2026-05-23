@@ -1,6 +1,7 @@
 import { UserApi, UserInfo } from "@eleapi/user/user.api";
 import { businessFactoryRegistry } from "@src/business";
 import { userService, DBUser } from "@utils/store/user.service";
+import { removeGlobal } from "@utils/store/electron";
 import log from "electron-log";
 
 /**
@@ -171,5 +172,15 @@ export class UserImpl extends UserApi {
 
         const syncService = businessFactoryRegistry.getSyncService(user.businessType);
         syncService.stopUserSync(username);
+    }
+
+    async clearCache(username: string): Promise<void> {
+        const cookieKey = `simba_cookie_${username}`;
+        const firstSyncKey = `simba_is_first_sync_${username}`;
+
+        await removeGlobal(cookieKey);
+        await removeGlobal(firstSyncKey);
+
+        log.info(`[clearCache] Cleared cache for user: ${username}, keys: ${cookieKey}, ${firstSyncKey}`);
     }
 }

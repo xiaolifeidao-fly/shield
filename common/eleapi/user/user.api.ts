@@ -66,5 +66,10 @@ export class UserApi extends ElectronApi {
     async stopUser(username: string): Promise<void> {
         return this.invokeApi("stopUser", username);
     }
-    
+
+    @InvokeType(Protocols.INVOKE)
+    async clearCache(username: string): Promise<void> {
+        return this.invokeApi("clearCache", username);
+    }
+
 }

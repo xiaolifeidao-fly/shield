@@ -160,6 +160,19 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  // Clear user cache (cookie etc.)
+  const handleClearCache = async (username: string) => {
+    try {
+      const userApi = (window as any).user;
+      if (userApi && userApi.clearCache) {
+        await userApi.clearCache(username);
+        message.success(`Cache cleared for ${username}, next sync will re-login`);
+      }
+    } catch (error: any) {
+      message.error('Failed to clear cache: ' + error.message);
+    }
+  };
+
   return (
     <div className="app-card user-management-container">
       <div className="card-title">User Management</div>
@@ -187,6 +200,7 @@ const UserManagement: React.FC = () => {
         onDelete={handleDelete}
         onRun={handleRun}
         onStop={handleStop}
+        onClearCache={handleClearCache}
       />
       <UserModal
         open={isModalOpen}
