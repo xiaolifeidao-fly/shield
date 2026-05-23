@@ -4,7 +4,7 @@ import { CasePageParams, CasePageResponse, CaseDetail, LoanPlan, CustomerInfo, C
 import { UserInfo, BusinessType } from '@eleapi/user/user.api';
 import { getCurrentUser, setCurrentUser } from '../../adapundi/api/adapundi.axios';
 import { getGlobal, setGlobal } from '@utils/store/electron';
-import { mysqlStore } from '@utils/store/mysql.store';
+// import { mysqlStore } from '@utils/store/mysql.store';
 import log from 'electron-log';
 import { login as simbaLogin } from './login.api';
 import { writeCase } from '@src/business/adapundi/api/writeCase.api';
@@ -12,9 +12,9 @@ import { writeCase } from '@src/business/adapundi/api/writeCase.api';
 const SIMBA_BASE_URL = 'https://collection.cairin.id';
 const SIMBA_API_BASE = `${SIMBA_BASE_URL}/xapi/v1`;
 
-function getFirstSyncKey(username: string): string {
-  return `simba_is_first_sync_${username}`;
-}
+// function getFirstSyncKey(username: string): string {
+//   return `simba_is_first_sync_${username}`;
+// }
 
 /**
  * Simba Case 接口
@@ -286,25 +286,6 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
     return caseInfo;
   }
 
-  /**
-   * 获取同步类型（直接从 MySQL 读取，不走缓存）
-   * false: 首次同步（全量）
-   * true: 增量同步
-   */
-  private async getIsFirstSync(): Promise<boolean> {
-    const user = this.getCurrentUser();
-    const username = user?.username || 'default';
-    const key = getFirstSyncKey(username);
-    const value = await mysqlStore.get(key);
-    return value === true || value === 'true';
-  }
-
-  private setIsFirstSync(value: boolean): void {
-    const user = this.getCurrentUser();
-    const username = user?.username || 'default';
-    setGlobal(getFirstSyncKey(username), value);
-  }
-
   async getCasePage(params: CasePageParams): Promise<CasePageResponse<SimbaCase>> {
     const { pageNum = 1 } = params;
     const pageSize = 100; // 默认 100
@@ -317,9 +298,9 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
     // 确保已登录
     await this.ensureLogin();
 
-    // 判断同步类型
-    const isFirstSync = await this.getIsFirstSync();
-    log.info(`Simba getCasePage isFirstSync=${isFirstSync}`);
+    // // 判断同步类型
+    // const isFirstSync = await this.getIsFirstSync();
+    // log.info(`Simba getCasePage isFirstSync=${isFirstSync}`);
 
     const requestBody: any = {
       action: 3,
@@ -328,22 +309,22 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
       searchKeyParam: {},
     };
 
-    // 如果不是首次同步，添加增量时间范围
-    if (!isFirstSync) {
-      const today = new Date();
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const formatDate = (date: Date) => {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-      };
-
-      requestBody.divisionTimeStart = `${formatDate(today)} 00:00:00`;
-      requestBody.divisionTimeEnd = `${formatDate(tomorrow)} 23:59:58`;
-    }
+    // // 如果不是首次同步，添加增量时间范围
+    // if (!isFirstSync) {
+    //   const today = new Date();
+    //   const tomorrow = new Date(today);
+    //   tomorrow.setDate(tomorrow.getDate() + 1);
+    //
+    //   const formatDate = (date: Date) => {
+    //     const y = date.getFullYear();
+    //     const m = String(date.getMonth() + 1).padStart(2, '0');
+    //     const d = String(date.getDate()).padStart(2, '0');
+    //     return `${y}-${m}-${d}`;
+    //   };
+    //
+    //   requestBody.divisionTimeStart = `${formatDate(today)} 00:00:00`;
+    //   requestBody.divisionTimeEnd = `${formatDate(tomorrow)} 23:59:58`;
+    // }
 
     try {
       const requestUrl = `${SIMBA_API_BASE}/cases/list`;
@@ -436,6 +417,25 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
     }
   }
 
+  // /**
+  //  * 获取同步类型（直接从 MySQL 读取，不走缓存）
+  //  * false: 首次同步（全量）
+  //  * true: 增量同步
+  //  */
+  // private async getIsFirstSync(): Promise<boolean> {
+  //   const user = this.getCurrentUser();
+  //   const username = user?.username || 'default';
+  //   const key = getFirstSyncKey(username);
+  //   const value = await mysqlStore.get(key);
+  //   return value === true || value === 'true';
+  // }
+
+  // private setIsFirstSync(value: boolean): void {
+  //   const user = this.getCurrentUser();
+  //   const username = user?.username || 'default';
+  //   setGlobal(getFirstSyncKey(username), value);
+  // }
+
   /**
    * 清除已保存的 cookie，下次同步会触发重新登录
    */
@@ -447,13 +447,13 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
     log.info(`Simba 已清除 cookie: simba_cookie_${username}`);
   }
 
-  /**
-   * 标记首次同步完成
-   */
-  markFirstSyncComplete(): void {
-    this.setIsFirstSync(false);
-    log.info('Simba 首次同步完成，已标记 isFirstSync=true');
-  }
+  // /**
+  //  * 标记首次同步完成
+  //  */
+  // markFirstSyncComplete(): void {
+  //   this.setIsFirstSync(false);
+  //   log.info('Simba 首次同步完成，已标记 isFirstSync=true');
+  // }
 
   async decryptPhone?(params: any): Promise<string | undefined> {
     return undefined;

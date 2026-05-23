@@ -24,11 +24,11 @@ export class SimbaCaseSyncService extends BaseCaseSyncService {
   ): Promise<SyncStats> {
     const stats = await super.syncUserCases(userInfo, params);
 
-    // 同步完成后标记首次同步完成
-    const simbaApi = this.businessApi as any;
-    if (simbaApi.markFirstSyncComplete) {
-      simbaApi.markFirstSyncComplete();
-    }
+    // // 同步完成后标记首次同步完成
+    // const simbaApi = this.businessApi as any;
+    // if (simbaApi.markFirstSyncComplete) {
+    //   simbaApi.markFirstSyncComplete();
+    // }
 
     return stats;
   }

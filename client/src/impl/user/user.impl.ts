@@ -176,11 +176,11 @@ export class UserImpl extends UserApi {
 
     async clearCache(username: string): Promise<void> {
         const cookieKey = `simba_cookie_${username}`;
-        const firstSyncKey = `simba_is_first_sync_${username}`;
+        // const firstSyncKey = `simba_is_first_sync_${username}`;
 
         await removeGlobal(cookieKey);
-        await removeGlobal(firstSyncKey);
+        // await removeGlobal(firstSyncKey);
 
-        log.info(`[clearCache] Cleared cache for user: ${username}, keys: ${cookieKey}, ${firstSyncKey}`);
+        log.info(`[clearCache] Cleared cache for user: ${username}, key: ${cookieKey}`);
     }
 }
