@@ -358,6 +358,7 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
       });
 
       const data = await response.json() as any;
+      log.info(`Simba getCasePage raw response: ${JSON.stringify(data)}`);
       const previewRecords = (data.data?.list || []).slice(0, 3);
       log.info(`Simba getCasePage requestUrl=${requestUrl}, requestBody=${JSON.stringify(requestBody)}, total=${data.data?.total}, previewRecords=${JSON.stringify(previewRecords)}`);
 
