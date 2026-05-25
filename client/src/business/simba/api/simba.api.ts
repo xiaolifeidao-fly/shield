@@ -351,7 +351,7 @@ export class SimbaBusinessApi extends BaseBusinessApi<SimbaCase> {
           caseId: String(item.id),
           fullName: fieldJson.customerName || item.name || '',
           product: fieldJson.productType || null,
-          mobile: fieldJson.mobileNo || item.mobile || '',
+          mobile: (fieldJson.mobileNo || item.mobile || '').replace(/^0+/, ''),
           customerId: item.id,
           // amount 是总债务 (oTotalAmount)
           amount: parseFloat(fieldJson.oTotalAmount) || item.amount || 0,
