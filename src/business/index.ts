@@ -1,20 +1,14 @@
 /**
  * 业务模块统一导出和初始化
  */
-import { registerAdapundiBusiness } from './adapundi/adapundi.register';
-import { registerSingaBusiness } from './singa/singa.register';
-import { registerKatBusiness } from './kat/kat.register';
-import { registerKlikKamiBusiness } from './klikkami/klikkami.register';
+import { registerUkuBusiness } from './uku/uku.register';
 
 /**
  * 初始化所有业务类型
  * 在应用启动时调用此函数注册所有业务
  */
 export function initializeBusinesses(): void {
-  registerAdapundiBusiness();
-  registerSingaBusiness();
-  registerKatBusiness();
-  registerKlikKamiBusiness();
+  registerUkuBusiness();
 }
 
 // 导出业务工厂注册表

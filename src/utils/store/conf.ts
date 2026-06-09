@@ -84,18 +84,18 @@ void initConfModule().catch((err) => {
 /**
  * 确保存储已初始化（应用启动时调用）
  * - 初始化本地 Conf 存储
- * - 初始化 MySQL 存储
+ * - 初始化当前配置的持久化存储（默认 MySQL，可通过 STORAGE_DRIVER=sqlite 切到 SQLite）
  */
 export async function ensureConfInitialized(): Promise<void> {
   await initConfModule();
   await ensureMysqlInitialized();
 }
 
-// ========= 实例级配置：读取优先使用旧存储，写入只走 MySQL =========
+// ========= 实例级配置：读取优先使用旧存储，写入只走当前持久化存储 =========
 
 /**
  * 获取指定实例的配置
- * 读取顺序：先旧的本地 Conf 存储，如果不存在再从 MySQL 读取
+ * 读取顺序：先旧的本地 Conf 存储，如果不存在再从当前持久化存储读取
  */
 export function getConfig(instanceKey: string, key: string): any {
   // 1) 先从旧的本地 Conf 存储读取
@@ -115,7 +115,7 @@ export function getConfig(instanceKey: string, key: string): any {
 
 /**
  * 设置指定实例的配置
- * 新增/更新的数据只写入 MySQL，旧文件中的历史数据保持不变
+ * 新增/更新的数据只写入当前持久化存储，旧文件中的历史数据保持不变
  */
 export function setConfig(instanceKey: string, key: string, value: any): void {
   setMysqlConfig(instanceKey, key, value);
@@ -123,7 +123,7 @@ export function setConfig(instanceKey: string, key: string, value: any): void {
 
 /**
  * 删除指定实例的配置
- * 只删除 MySQL 中的数据，不改动旧文件中的历史数据
+ * 只删除当前持久化存储中的数据，不改动旧文件中的历史数据
  */
 export function removeConfig(instanceKey: string, key: string): void {
   removeMysqlConfig(instanceKey, key);
@@ -131,7 +131,7 @@ export function removeConfig(instanceKey: string, key: string): void {
 
 /**
  * 清空指定实例的所有配置
- * 只清空 MySQL 中的数据，不改动旧文件中的历史数据
+ * 只清空当前持久化存储中的数据，不改动旧文件中的历史数据
  */
 export function clearConfig(instanceKey: string): void {
   clearMysqlConfig(instanceKey);
@@ -139,7 +139,7 @@ export function clearConfig(instanceKey: string): void {
 
 /**
  * 获取指定实例的所有存储键名
- * 返回旧存储和 MySQL 中键名的并集
+ * 返回旧存储和当前持久化存储中键名的并集
  */
 export function getAllConfigKeys(instanceKey: string): string[] {
   const keys = new Set<string>();
@@ -165,7 +165,7 @@ export function getAllConfigKeys(instanceKey: string): string[] {
 /**
  * 获取指定实例的配置文件路径（旧存储）
  * - 优先返回本地 Conf 存储的路径（便于查看旧数据，如 ~/Library/Preferences/shield-nodejs/default.json）
- * - 如果旧存储不可用，则返回 'mysql://'
+ * - 如果旧存储不可用，则返回当前持久化存储标识
  */
 export function getConfigPath(instanceKey: string): string;
 /**
@@ -178,7 +178,7 @@ export function getConfigPath(instanceKey?: string): string {
     const conf = getConfInstance(key);
     return conf.path;
   } catch {
-    return 'mysql://';
+    return 'storage://';
   }
 }
 
@@ -192,7 +192,7 @@ export function removeConfInstance(instanceKey: string): void {
 
 /**
  * 获取所有已创建的实例标识
- * - 返回旧 Conf 实例和 MySQL 默认实例标识的并集
+ * - 返回旧 Conf 实例和当前持久化存储默认实例标识的并集
  */
 export function getAllInstanceKeys(): string[] {
   const keys = new Set<string>();
@@ -203,11 +203,11 @@ export function getAllInstanceKeys(): string[] {
   return Array.from(keys);
 }
 
-// ========== 全局配置函数（向后兼容：读优先旧存储，写只走 MySQL） ==========
+// ========== 全局配置函数（向后兼容：读优先旧存储，写只走当前持久化存储） ==========
 
 /**
  * 获取全局配置（使用默认实例）
- * 读取顺序：先旧的本地 Conf 存储，如果不存在再从 MySQL 读取
+ * 读取顺序：先旧的本地 Conf 存储，如果不存在再从当前持久化存储读取
  */
 export function getGlobal(key: string): any {
   try {
@@ -225,7 +225,7 @@ export function getGlobal(key: string): any {
 
 /**
  * 设置全局配置（使用默认实例）
- * 新增/更新的数据只写入 MySQL
+ * 新增/更新的数据只写入当前持久化存储
  */
 export function setGlobal(key: string, value: any): Promise<void> {
   return setMysqlConfig(getDefaultInstanceKey(), key, value);
@@ -233,7 +233,7 @@ export function setGlobal(key: string, value: any): Promise<void> {
 
 /**
  * 删除全局配置（使用默认实例）
- * 只删除 MySQL 中的数据
+ * 只删除当前持久化存储中的数据
  */
 export function removeGlobal(key: string): void {
   removeMysqlConfig(getDefaultInstanceKey(), key);
@@ -241,7 +241,7 @@ export function removeGlobal(key: string): void {
 
 /**
  * 清空所有全局配置（使用默认实例）
- * 只清空 MySQL 中的数据
+ * 只清空当前持久化存储中的数据
  */
 export function clearGlobal(): void {
   clearMysqlConfig(getDefaultInstanceKey());
@@ -249,7 +249,7 @@ export function clearGlobal(): void {
 
 /**
  * 获取所有存储键名（使用默认实例）
- * 返回旧存储和 MySQL 中键名的并集
+ * 返回旧存储和当前持久化存储中键名的并集
  */
 export function getAllStoreKeys(): string[] {
   const keys = new Set<string>();
