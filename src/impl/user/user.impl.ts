@@ -1,9 +1,13 @@
 import { UserApi } from "@api/user.api";
 import { UserInfo } from "@model/user.types";
-import { deleteUserByUsername, getUserByUsername, insertUser, listUsers, updateUser } from "@src/utils/store/mysql-store";
+import { deleteUserByUsername, getUserByUsername, insertUser, listUsers, updateUser, updateUserAuthCookie } from "@src/utils/store/mysql-store";
 import { businessFactoryRegistry } from "@src/business";
 import log from "../../utils/logger";
 import { ensureKlikKamiSession } from "@src/business/klikkami/api/klikkami.axios";
+import { releaseEngineInstance } from "@src/business/common/engine.manager";
+import fs from "fs";
+import os from "os";
+import path from "path";
 
 export class UserImpl extends UserApi {
 
@@ -167,5 +171,31 @@ export class UserImpl extends UserApi {
 
         const syncService = businessFactoryRegistry.getSyncService(user.businessType);
         syncService.stopUserSync(username);
+    }
+
+    async clearUserLogin(username: string): Promise<void> {
+        const user = await getUserByUsername(username);
+        if (!user) {
+            throw new Error(`用户 ${username} 不存在`);
+        }
+
+        await updateUserAuthCookie(username, null);
+
+        if (user.businessType === 'uku') {
+            const resourceId = `${username}_${user.businessType}`;
+            await releaseEngineInstance(resourceId).catch((error) => {
+                log.warn(`[clearUserLogin] release UKU engine failed for ${resourceId}:`, error);
+            });
+
+            const engineRoot = process.env.USER_DATA_PATH || process.env.SHIELD_ENGINE_ROOT_DIR || path.join(os.homedir(), '.config', 'shield');
+            const userDataBase = process.env.SHIELD_ENGINE_USER_DATA_DIR || path.join(engineRoot, 'resource', 'userDataDir');
+            const userDataDir = path.join(userDataBase, 'instance_false', resourceId);
+            if (fs.existsSync(userDataDir)) {
+                fs.rmSync(userDataDir, { recursive: true, force: true });
+                log.info(`[clearUserLogin] removed UKU user data dir: ${userDataDir}`);
+            }
+        }
+
+        log.info(`[clearUserLogin] cleared login info for user: ${username}`);
     }
 }

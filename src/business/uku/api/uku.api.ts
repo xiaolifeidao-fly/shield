@@ -5,6 +5,8 @@ import { BusinessType, UserInfo } from '@model/user.types';
 import { getCurrentUser, setCurrentUser, ukuInstance } from './uku.axios';
 import { writeCase } from '@src/business/adapundi/api/writeCase.api';
 import log from '@src/utils/logger';
+import { updateUserAuthCookie } from '@src/utils/store/mysql-store';
+import { login as ukuLogin } from './login.api';
 
 interface UkuColCaseItem {
   id: string;
@@ -327,6 +329,8 @@ function mapUkuCaseToCustomerInfo(caseItem: UkuCase, detail?: UkuCaseDetailRespo
 }
 
 export class UkuBusinessApi extends BaseBusinessApi<UkuCase> {
+  private authCookie: string | null = null;
+
   getAxiosInstance(): AxiosInstance {
     return ukuInstance;
   }
@@ -339,7 +343,37 @@ export class UkuBusinessApi extends BaseBusinessApi<UkuCase> {
     return getCurrentUser();
   }
 
+  private async ensureLogin(): Promise<void> {
+    const user = this.getCurrentUser();
+    if (!user) {
+      throw new Error('未找到当前用户信息');
+    }
+
+    if (this.authCookie) {
+      user.authCookie = this.authCookie;
+      setCurrentUser(user);
+      return;
+    }
+
+    if (user.authCookie) {
+      this.authCookie = user.authCookie;
+      return;
+    }
+
+    const loginResult = await ukuLogin(user);
+    if (!loginResult.success || !loginResult.cookie) {
+      throw new Error(`UKU 登录失败: ${loginResult.message || '未获取到 Cookie'}`);
+    }
+
+    this.authCookie = loginResult.cookie;
+    const updatedUser = { ...user, authCookie: loginResult.cookie };
+    setCurrentUser(updatedUser);
+    await updateUserAuthCookie(user.username, loginResult.cookie);
+    log.info(`[UKU] auth cookie saved for ${user.username}`);
+  }
+
   async getCasePage(params: CasePageParams): Promise<CasePageResponse<UkuCase>> {
+    await this.ensureLogin();
     const page = params.pageNum ?? 1;
     const rows = params.pageSize ?? 20;
     const { pageNum, pageSize, enableDeduplication, enableResume, ...restParams } = params as any;

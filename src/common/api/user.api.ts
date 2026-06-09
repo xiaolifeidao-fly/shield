@@ -42,5 +42,9 @@ export class UserApi extends ElectronApi {
     return this.invokeApi("stopUser", username);
   }
 
-}
+  @InvokeType(Protocols.INVOKE)
+  async clearUserLogin(username: string): Promise<void> {
+    return this.invokeApi("clearUserLogin", username);
+  }
 
+}

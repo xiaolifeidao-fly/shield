@@ -109,5 +109,19 @@ export function registerUserRoutes(router: Router): void {
       res.status(500).json({ success: false, error: error.message });
     }
   });
-}
 
+  // POST /user/clearUserLogin - 清理用户登录信息
+  router.post('/user/clearUserLogin', async (req: Request, res: Response) => {
+    try {
+      const { username } = req.body;
+      if (!username) {
+        return res.status(400).json({ success: false, error: 'username is required' });
+      }
+      await userImpl.clearUserLogin(username);
+      res.json({ success: true, data: null });
+    } catch (error: any) {
+      log.error('clearUserLogin error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+}

@@ -39,7 +39,9 @@ export function createApp(): Express {
 
   // 请求日志中间件
   app.use((req: Request, res: Response, next: NextFunction) => {
-    log.info(`${req.method} ${req.path}`);
+    if (!(req.method === 'GET' && req.path === '/api/user/getUserInfoList')) {
+      log.info(`${req.method} ${req.path}`);
+    }
     next();
   });
 
@@ -111,4 +113,3 @@ export async function startServer(): Promise<void> {
     process.exit(1);
   }
 }
-
