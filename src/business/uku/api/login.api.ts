@@ -9,12 +9,52 @@ export interface LoginResponse {
   cookie?: string;
 }
 
+async function fillFirst(page: Page, selectors: string[], value: string): Promise<boolean> {
+  for (const selector of selectors) {
+    const locator = page.locator(selector).first();
+    if (await locator.count().catch(() => 0)) {
+      await locator.fill(value).catch(() => undefined);
+      const currentValue = await locator.inputValue().catch(() => '');
+      if (currentValue === value) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+async function fillLoginForm(page: Page, username: string, password: string): Promise<void> {
+  const usernameFilled = await fillFirst(page, [
+    'input[name="username"]',
+    'input[name="userName"]',
+    'input[name="account"]',
+    'input[name="loginName"]',
+    'input[id*="user" i]',
+    'input[placeholder*="username" i]',
+    'input[placeholder*="user" i]',
+    'input[placeholder*="account" i]',
+    'input[placeholder*="nama" i]',
+    'input[type="text"]',
+  ], username);
+
+  const passwordFilled = await fillFirst(page, [
+    'input[name="password"]',
+    'input[name="pwd"]',
+    'input[id*="password" i]',
+    'input[placeholder*="password" i]',
+    'input[placeholder*="kata sandi" i]',
+    'input[type="password"]',
+  ], password);
+
+  log.info(`[UKU] login form autofill username=${usernameFilled} password=${passwordFilled}`);
+}
+
 export async function login(userInfo: UserInfo): Promise<LoginResponse> {
-  const { username } = userInfo;
-  if (!username) {
+  const { username, password } = userInfo;
+  if (!username || !password) {
     return {
       success: false,
-      message: '用户名不能为空',
+      message: '用户名或密码不能为空',
     };
   }
 
@@ -32,6 +72,8 @@ export async function login(userInfo: UserInfo): Promise<LoginResponse> {
     await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
       log.warn('[UKU] login page network idle timeout, continue waiting for manual login');
     });
+
+    await fillLoginForm(page, username, password);
 
     log.info(`[UKU] waiting manual login for ${username}`);
     await page.waitForURL(

@@ -189,10 +189,12 @@ export class UserImpl extends UserApi {
 
             const engineRoot = process.env.USER_DATA_PATH || process.env.SHIELD_ENGINE_ROOT_DIR || path.join(os.homedir(), '.config', 'shield');
             const userDataBase = process.env.SHIELD_ENGINE_USER_DATA_DIR || path.join(engineRoot, 'resource', 'userDataDir');
-            const userDataDir = path.join(userDataBase, 'instance_false', resourceId);
-            if (fs.existsSync(userDataDir)) {
-                fs.rmSync(userDataDir, { recursive: true, force: true });
-                log.info(`[clearUserLogin] removed UKU user data dir: ${userDataDir}`);
+            for (const namespace of ['instance_false', 'instance_true']) {
+                const userDataDir = path.join(userDataBase, namespace, resourceId);
+                if (fs.existsSync(userDataDir)) {
+                    fs.rmSync(userDataDir, { recursive: true, force: true });
+                    log.info(`[clearUserLogin] removed UKU user data dir: ${userDataDir}`);
+                }
             }
         }
 
