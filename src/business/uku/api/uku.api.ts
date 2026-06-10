@@ -375,7 +375,7 @@ export class UkuBusinessApi extends BaseBusinessApi<UkuCase> {
   async getCasePage(params: CasePageParams): Promise<CasePageResponse<UkuCase>> {
     await this.ensureLogin();
     const page = params.pageNum ?? 1;
-    const rows = params.pageSize ?? 20;
+    const rows = params.pageSize ?? 100;
     const { pageNum, pageSize, enableDeduplication, enableResume, ...restParams } = params as any;
     const requestParams: Record<string, any> = {
       page,

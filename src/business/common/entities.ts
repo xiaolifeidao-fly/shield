@@ -66,7 +66,7 @@ export interface Case {
  */
 export interface CasePageParams {
   pageNum?: number; // 页码，默认1
-  pageSize?: number; // 每页大小，默认20
+  pageSize?: number; // 每页大小，默认100
   product?: string; // 产品类型
   [key: string]: any; // 允许其他查询参数
 }
@@ -296,4 +296,3 @@ export interface LoanDetail {
   rolloverType: string | null;
   esignFlag: boolean;
 }
-

@@ -421,7 +421,7 @@ export abstract class BaseCaseSyncService {
 
   async syncUserCasesByParams(userInfo: UserInfo, params: {[key: string]: any } = {}, stats: SyncStats, cache: SyncCache, enableDeduplication: boolean = true, enableResume: boolean = false){
       let pageNum: number = 1;
-      const pageSize = 20;
+      const pageSize = 100;
       log.info(`saveUserSyncStats: ${JSON.stringify(stats)}`);
       const username = userInfo.username;
       const startTimeMs = Date.now();
