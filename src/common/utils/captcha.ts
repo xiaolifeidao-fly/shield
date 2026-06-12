@@ -1,38 +1,69 @@
-import { execFile } from 'child_process';
+import { execFile, execFileSync } from 'child_process';
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { promisify } from 'util';
 
 const execFileAsync = promisify(execFile);
 
-function findPython(): string {
-  if (process.platform === 'win32') {
-    for (const name of ['python', 'python3', 'py']) {
-      try { require('child_process').execSync(`${name} --version`, { stdio: 'ignore' }); return name; } catch {}
+type PythonCommand = {
+  command: string;
+  args: string[];
+};
+
+const BUNDLED_DDDDOCR_SCRIPT = 'python/ddddocr-demo/recognize.py';
+const LEGACY_DDDDOCR_SCRIPT = '/Users/hitol/work/code/indo/ddddocr-demo/recognize.py';
+
+function canRun(command: string, args: string[] = []): boolean {
+  try {
+    execFileSync(command, [...args, '--version'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function findPython(script: string): PythonCommand {
+  if (process.env.DDDDOCR_PYTHON) {
+    const [command, ...args] = process.env.DDDDOCR_PYTHON.split(' ').filter(Boolean);
+    if (command && canRun(command, args)) {
+      return { command, args };
     }
-    throw new Error('Python not found on Windows');
   }
-  // macOS / Linux / Docker
-  const candidates = [
-    'python3',
-    'python',
-    '/usr/bin/python3',
-    '/usr/local/bin/python3',
-    '/opt/homebrew/bin/python3',
-  ];
-  for (const p of candidates) {
-    try { require('child_process').execSync(`${p} --version`, { stdio: 'ignore' }); return p; } catch {}
+
+  const scriptDir = dirname(script);
+  const venvCandidates: PythonCommand[] = process.platform === 'win32'
+    ? [{ command: join(scriptDir, '.venv', 'Scripts', 'python.exe'), args: [] }]
+    : [{ command: join(scriptDir, '.venv', 'bin', 'python'), args: [] }];
+
+  const candidates: PythonCommand[] = process.platform === 'win32'
+    ? [
+      { command: 'python', args: [] },
+      { command: 'python3', args: [] },
+      { command: 'py', args: ['-3'] },
+    ]
+    : [
+      { command: 'python3', args: [] },
+      { command: 'python', args: [] },
+      { command: '/opt/homebrew/bin/python3', args: [] },
+      { command: '/usr/local/bin/python3', args: [] },
+      { command: '/usr/bin/python3', args: [] },
+    ];
+
+  const python = [...venvCandidates, ...candidates].find(({ command, args }) => canRun(command, args));
+  if (!python) {
+    throw new Error('Python not found. Install Python 3 or set DDDDOCR_PYTHON.');
   }
-  throw new Error('Python not found');
+  return python;
 }
 
 function findScript(): string {
   const possiblePaths = [
-    // 开发环境：项目根目录下的 ddddocr-demo
-    join(process.cwd(), '..', '..', 'ddddocr-demo', 'recognize.py'),
-    // 同级目录
-    join(process.cwd(), '..', 'ddddocr-demo', 'recognize.py'),
-    // 环境变量
+    // 项目内置 demo: npm run dev / npm start 从项目根目录运行
+    join(process.cwd(), BUNDLED_DDDDOCR_SCRIPT),
+    // 打包后从 dist/main.js 运行
+    join(__dirname, '..', BUNDLED_DDDDOCR_SCRIPT),
+    // 兼容旧的外部 demo 路径
+    LEGACY_DDDDOCR_SCRIPT,
     process.env.DDDDOCR_SCRIPT || '',
   ];
   // 支持用户自定义路径
@@ -46,8 +77,27 @@ function findScript(): string {
 }
 
 export async function recognizeCaptcha(imagePath: string): Promise<string> {
-  const python = findPython();
+  if (!existsSync(imagePath)) {
+    throw new Error(`captcha image not found: ${imagePath}`);
+  }
+
   const script = findScript();
-  const { stdout } = await execFileAsync(python, [script, imagePath]);
-  return stdout.trim();
+  const python = findPython(script);
+  const timeout = Number(process.env.DDDDOCR_TIMEOUT_MS || 30000);
+
+  try {
+    const { stdout } = await execFileAsync(
+      python.command,
+      [...python.args, script, imagePath],
+      {
+        cwd: dirname(script),
+        timeout,
+        windowsHide: true,
+      },
+    );
+    return stdout.trim();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`captcha recognition failed: ${message}`);
+  }
 }
