@@ -78,3 +78,5 @@ export {
     sleep,
     isDev
 }
+
+export { recognizeCaptcha } from './captcha'
