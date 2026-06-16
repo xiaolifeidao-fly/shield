@@ -5,7 +5,6 @@ import { BusinessType, UserInfo } from '@model/user.types';
 import { getCurrentUser, setCurrentUser, ukuInstance } from './uku.axios';
 import { writeCase } from '@src/business/adapundi/api/writeCase.api';
 import log from '@src/utils/logger';
-import { updateUserAuthCookie } from '@src/utils/store/mysql-store';
 import { login as ukuLogin } from './login.api';
 
 interface UkuColCaseItem {
@@ -355,11 +354,6 @@ export class UkuBusinessApi extends BaseBusinessApi<UkuCase> {
       return;
     }
 
-    if (user.authCookie) {
-      this.authCookie = user.authCookie;
-      return;
-    }
-
     const loginResult = await ukuLogin(user);
     if (!loginResult.success || !loginResult.cookie) {
       throw new Error(`UKU 登录失败: ${loginResult.message || '未获取到 Cookie'}`);
@@ -368,8 +362,7 @@ export class UkuBusinessApi extends BaseBusinessApi<UkuCase> {
     this.authCookie = loginResult.cookie;
     const updatedUser = { ...user, authCookie: loginResult.cookie };
     setCurrentUser(updatedUser);
-    await updateUserAuthCookie(user.username, loginResult.cookie);
-    log.info(`[UKU] auth cookie saved for ${user.username}`);
+    log.info(`[UKU] auth cookie refreshed in memory for ${user.username}`);
   }
 
   async getCasePage(params: CasePageParams): Promise<CasePageResponse<UkuCase>> {

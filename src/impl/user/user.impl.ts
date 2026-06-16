@@ -128,6 +128,11 @@ export class UserImpl extends UserApi {
             throw new Error(`业务类型 ${user.businessType} 未注册`);
         }
 
+        if (user.businessType === 'uku') {
+            await this.clearUserLogin(username);
+            user.authCookie = undefined;
+        }
+
         log.info(`runUser: ${JSON.stringify(user)} start sync, enableDeduplication: ${enableDeduplication}, enableResume: ${enableResume}`);
         let resolvedUser = user as UserInfo;
 
