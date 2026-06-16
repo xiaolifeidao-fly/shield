@@ -3,7 +3,29 @@ import { SyncTimeConfig } from "@model/system.types";
 import { SystemImpl } from "@src/impl/config/system.impl";
 import { UserImpl } from "@src/impl/user/user.impl";
 import { clearBusinessTypeCache } from "@src/business/common/base.sync";
+import { CrawlerEndStatus, notifyCrawlerEnd, notifyCrawlerStart } from "@src/business/common/crawler-data-days.api";
 import log from '../utils/logger';
+
+function formatLocalDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+    if (typeof error === 'string') {
+        return error;
+    }
+    try {
+        return JSON.stringify(error);
+    } catch {
+        return String(error);
+    }
+}
 
 /**
  * 定时任务管理器
@@ -154,8 +176,15 @@ class ScheduledTaskManager {
      */
     private async executeTaskForBusiness(businessType: BusinessType): Promise<void> {
         log.info(`[ScheduledTaskManager] Executing scheduled task for business type: ${businessType}`);
+        const crawlDate = formatLocalDate(new Date());
+        let crawlerEndStatus: CrawlerEndStatus = 'SUCCESS';
+        const failureReasons: string[] = [];
         
         try {
+            await notifyCrawlerStart(businessType, crawlDate).catch(error => {
+                log.error(`[ScheduledTaskManager] Failed to notify crawler start for ${businessType} ${crawlDate}:`, error);
+            });
+
             // 清理该 businessType 的缓存数据
             log.info(`[ScheduledTaskManager] Clearing cache for business type: ${businessType}`);
             await clearBusinessTypeCache(businessType);
@@ -175,12 +204,20 @@ class ScheduledTaskManager {
             for (const user of businessUsers) {
                 await this.userImpl.runUser(user.username, false).catch(err => {
                     log.error(`[ScheduledTaskManager] Failed to run user ${user.username}:`, err);
-                    // 不抛出错误，继续执行其他用户
+                    crawlerEndStatus = 'FAILED';
+                    failureReasons.push(`user ${user.username}: ${getErrorMessage(err)}`);
                 });
             }
             log.info(`[ScheduledTaskManager] Completed scheduled task for business type: ${businessType}`);
         } catch (error) {
+            crawlerEndStatus = 'FAILED';
+            failureReasons.push(getErrorMessage(error));
             log.error(`[ScheduledTaskManager] Error executing task for business type ${businessType}:`, error);
+        } finally {
+            const reason = failureReasons.length > 0 ? failureReasons.join('; ').slice(0, 1000) : undefined;
+            await notifyCrawlerEnd(businessType, crawlDate, crawlerEndStatus, reason).catch(error => {
+                log.error(`[ScheduledTaskManager] Failed to notify crawler end for ${businessType} ${crawlDate}:`, error);
+            });
         }
     }
 
