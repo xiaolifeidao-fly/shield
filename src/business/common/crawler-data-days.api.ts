@@ -67,7 +67,7 @@ function getCrawlerDataDaysInstance(): AxiosInstance {
   crawlerDataDaysInstance.interceptors.response.use(
     (response: AxiosResponse<CrawlerDataDayResponse>) => {
       const result = response.data;
-      if (result?.code === 200 || result?.status === 'SUCCESS') {
+      if (result?.code === 0 || result?.code === 200 || result?.status === 'SUCCESS' || result?.data?.status === 'SUCCESS') {
         return result.data;
       }
 
