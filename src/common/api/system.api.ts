@@ -28,5 +28,15 @@ export class SystemApi extends ElectronApi {
     return this.invokeApi("saveSyncTimeConfigByBusiness", businessType, config);
   }
 
+  @InvokeType(Protocols.INVOKE)
+  async getSkipSyncedCases(businessType: BusinessType): Promise<boolean> {
+    return this.invokeApi("getSkipSyncedCases", businessType);
+  }
+
+  @InvokeType(Protocols.INVOKE)
+  async setSkipSyncedCases(businessType: BusinessType, value: boolean): Promise<void> {
+    return this.invokeApi("setSkipSyncedCases", businessType, value);
+  }
+
 }
 
