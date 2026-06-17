@@ -25,21 +25,28 @@ const CRAWLER_DATA_DAYS_PATH = '/loan/import/external/crawler-data-days';
 const SYNC_PATH = '/loan/import/external/sync';
 
 function getCrawlerDataDaysBaseURL(): string {
-  const baseURL = process.env.WRITE_CASE_API_BASE_URL || '';
-  if (!baseURL) {
+  const writeCaseBaseURL = (process.env.WRITE_CASE_API_BASE_URL || '').trim();
+  if (!writeCaseBaseURL) {
     log.warn('[CrawlerDataDays] WRITE_CASE_API_BASE_URL is not set, crawler status API may fail');
     return '';
   }
 
-  if (baseURL.includes(SYNC_PATH)) {
-    return baseURL.slice(0, baseURL.indexOf(SYNC_PATH));
+  if (writeCaseBaseURL.includes(SYNC_PATH)) {
+    return writeCaseBaseURL.slice(0, writeCaseBaseURL.indexOf(SYNC_PATH)).replace(/\/$/, '');
   }
 
-  if (baseURL.includes(CRAWLER_DATA_DAYS_PATH)) {
-    return baseURL.slice(0, baseURL.indexOf(CRAWLER_DATA_DAYS_PATH));
+  if (writeCaseBaseURL.includes(CRAWLER_DATA_DAYS_PATH)) {
+    return writeCaseBaseURL.slice(0, writeCaseBaseURL.indexOf(CRAWLER_DATA_DAYS_PATH)).replace(/\/$/, '');
   }
 
-  return baseURL.replace(/\/$/, '');
+  return writeCaseBaseURL.replace(/\/$/, '');
+}
+
+function getRequestURL(baseURL: string | undefined, endpoint: string): string {
+  if (!baseURL) {
+    return endpoint;
+  }
+  return `${baseURL.replace(/\/$/, '')}${endpoint}`;
 }
 
 let crawlerDataDaysInstance: AxiosInstance | null = null;
@@ -91,8 +98,9 @@ async function notifyCrawlerDataDay(
   }
 
   const endpoint = `${CRAWLER_DATA_DAYS_PATH}/${action}`;
+  const baseURL = getCrawlerDataDaysInstance().defaults.baseURL;
 
-  log.info(`[CrawlerDataDays] ${action} request: ${JSON.stringify(requestData)}`);
+  log.info(`[CrawlerDataDays] ${action} request: url=${getRequestURL(baseURL, endpoint)}, data=${JSON.stringify(requestData)}`);
   await getCrawlerDataDaysInstance().post(endpoint, requestData);
   log.info(`[CrawlerDataDays] ${action} success for ${businessType} ${date}`);
 }
