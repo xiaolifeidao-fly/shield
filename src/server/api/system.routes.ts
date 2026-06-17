@@ -65,5 +65,38 @@ export function registerSystemRoutes(router: Router): void {
       res.status(500).json({ success: false, error: error.message });
     }
   });
+
+  // GET /system/getSkipSyncedCases - 获取是否跳过今日已同步案件
+  router.get('/system/getSkipSyncedCases', async (req: Request, res: Response) => {
+    try {
+      const { businessType } = req.query;
+      if (!businessType) {
+        return res.status(400).json({ success: false, error: 'businessType is required' });
+      }
+      const result = await systemImpl.getSkipSyncedCases(businessType as BusinessType);
+      res.json({ success: true, data: result });
+    } catch (error: any) {
+      log.error('getSkipSyncedCases error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // POST /system/setSkipSyncedCases - 设置是否跳过今日已同步案件
+  router.post('/system/setSkipSyncedCases', async (req: Request, res: Response) => {
+    try {
+      const { businessType, value } = req.body;
+      if (!businessType) {
+        return res.status(400).json({ success: false, error: 'businessType is required' });
+      }
+      if (typeof value !== 'boolean') {
+        return res.status(400).json({ success: false, error: 'value must be a boolean' });
+      }
+      await systemImpl.setSkipSyncedCases(businessType, value);
+      res.json({ success: true, data: null });
+    } catch (error: any) {
+      log.error('setSkipSyncedCases error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
 }
 

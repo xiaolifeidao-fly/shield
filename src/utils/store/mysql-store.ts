@@ -56,6 +56,13 @@ export function getAllConfigKeys(instanceKey: string): string[] {
   return getStore().getAllConfigKeys(instanceKey);
 }
 
+/**
+ * 直接从数据库读取配置值，不经过内存缓存
+ */
+export async function getConfigFromDb(instanceKey: string, key: string): Promise<any> {
+  return getStore().getConfigFromDb(instanceKey, key);
+}
+
 export function getDefaultInstanceKey(): string {
   return getStore().getDefaultInstanceKey();
 }

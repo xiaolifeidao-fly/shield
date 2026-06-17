@@ -191,6 +191,20 @@ export function getAllConfigKeys(instanceKey: string): string[] {
   return Array.from(cache.keys());
 }
 
+/**
+ * 直接从数据库读取配置值，不经过内存缓存
+ */
+export async function getConfigFromDb(instanceKey: string, key: string): Promise<any> {
+  const instance = instanceKey || DEFAULT_INSTANCE_KEY;
+  const row = getDatabase()
+    .prepare('SELECT config_value FROM shield_global_kv WHERE instance_key = ? AND config_key = ? LIMIT 1')
+    .get(instance, key) as { config_value: string } | undefined;
+  if (!row) {
+    return undefined;
+  }
+  return deserializeValue(row.config_value);
+}
+
 export function getDefaultInstanceKey(): string {
   return DEFAULT_INSTANCE_KEY;
 }

@@ -2,9 +2,11 @@ import { SystemApi } from "@api/system.api";
 import { SyncTimeConfig } from "@model/system.types";
 import { BusinessType } from "@model/user.types";
 import { getGlobal, setGlobal } from "@src/utils/store/conf";
+import { getConfigFromDb } from "@src/utils/store/mysql-store";
 import { rescheduleScheduledTasks, getTaskManager } from "@src/task/task";
 
 const SYNC_TIME_CONFIG_KEY = "syncTimeConfig";
+const SKIP_SYNCED_CASES_KEY = "skipSyncedCases";
 
 export class SystemImpl extends SystemApi {
 
@@ -92,5 +94,25 @@ export class SystemImpl extends SystemApi {
         } catch (error) {
             console.error(`Failed to reschedule task for business type ${businessType}:`, error);
         }
+    }
+
+    /**
+     * 获取是否跳过今日已同步案件的配置（每次直接查库，不走缓存）
+     */
+    async getSkipSyncedCases(businessType: BusinessType): Promise<boolean> {
+        const key = `${SKIP_SYNCED_CASES_KEY}_${businessType}`;
+        const value = await getConfigFromDb('default', key);
+        if (value === undefined || value === null) {
+            return false;
+        }
+        return !!value;
+    }
+
+    /**
+     * 设置是否跳过今日已同步案件的配置
+     */
+    async setSkipSyncedCases(businessType: BusinessType, value: boolean): Promise<void> {
+        const key = `${SKIP_SYNCED_CASES_KEY}_${businessType}`;
+        await setGlobal(key, value);
     }
 }   

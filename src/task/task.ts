@@ -179,15 +179,23 @@ class ScheduledTaskManager {
         const crawlDate = formatLocalDate(new Date());
         let crawlerEndStatus: CrawlerEndStatus = 'SUCCESS';
         const failureReasons: string[] = [];
-        
+
         try {
             await notifyCrawlerStart(businessType, crawlDate).catch(error => {
                 log.error(`[ScheduledTaskManager] Failed to notify crawler start for ${businessType} ${crawlDate}:`, error);
             });
 
-            // 清理该 businessType 的缓存数据
-            log.info(`[ScheduledTaskManager] Clearing cache for business type: ${businessType}`);
-            await clearBusinessTypeCache(businessType);
+            // 读取是否跳过今日已同步案件的配置
+            const skipSyncedCases = await this.systemImpl.getSkipSyncedCases(businessType);
+            log.info(`[ScheduledTaskManager] skipSyncedCases config: ${skipSyncedCases}`);
+
+            if (!skipSyncedCases) {
+                // 默认行为：清理缓存，全量更新
+                log.info(`[ScheduledTaskManager] Clearing cache for business type: ${businessType}`);
+                await clearBusinessTypeCache(businessType);
+            } else {
+                log.info(`[ScheduledTaskManager] Skipping cache clear for business type: ${businessType} (skipSyncedCases=true)`);
+            }
             
             // 获取该业务类型下的所有用户
             const allUsers = await this.userImpl.getUserInfoList();
@@ -202,7 +210,7 @@ class ScheduledTaskManager {
 
             // 所有业务保持串行执行，降低外部接口压力
             for (const user of businessUsers) {
-                await this.userImpl.runUser(user.username, false).catch(err => {
+                await this.userImpl.runUser(user.username, skipSyncedCases).catch(err => {
                     log.error(`[ScheduledTaskManager] Failed to run user ${user.username}:`, err);
                     crawlerEndStatus = 'FAILED';
                     failureReasons.push(`user ${user.username}: ${getErrorMessage(err)}`);
