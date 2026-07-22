@@ -5,8 +5,6 @@ import { UserInfo, BusinessType } from '@model/user.types';
 import { getCurrentUser, setCurrentUser, writeCaseInstance } from '../../adapundi/api/adapundi.axios';
 import { EngineInstance } from '@src/engine/engine.instance';
 import log from '../../../utils/logger';
-import { getPage } from '@src/business/common/engine.manager';
-import { Page } from 'playwright-core';
 import { login as singaLogin } from './login.api';
 import { writeCase } from '@src/business/adapundi/api/writeCase.api';
 import { sleep } from '@utils/index';
@@ -15,6 +13,7 @@ import { EXTRACT_CASE_PAGE_SCRIPT, EXTRACT_LOAN_DETAIL_SCRIPT } from './singa.pa
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { getSingaPage, SINGA_REQUEST_TIMEOUT_MS } from './singa.page';
 
 /**
  * Singa Case 接口，扩展自 Case
@@ -244,7 +243,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
     const loginUrl = 'https://col.singa.id/login';
 
     try {
-      let page = await getPage(resourceId, detailUrl) as unknown as Page;
+      let page = await getSingaPage(resourceId, detailUrl);
       if (!page) {
         throw new Error('无法初始化详情页面');
       }
@@ -257,17 +256,17 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
           return null;
         }
 
-        page = await getPage(resourceId, detailUrl) as unknown as Page;
+        page = await getSingaPage(resourceId, detailUrl);
         if (!page) {
           throw new Error('登录后无法初始化详情页面');
         }
       }
 
-      await page.waitForLoadState('domcontentloaded', { timeout: 30000 }).catch(() => {
+      await page.waitForLoadState('domcontentloaded', { timeout: SINGA_REQUEST_TIMEOUT_MS }).catch(() => {
         log.warn(`Singa 贷款详情页面加载 domcontentloaded 超时: ${caseId}`);
       });
 
-      await page.waitForSelector('#firstTable tbody tr', { timeout: 15000 }).catch(() => {
+      await page.waitForSelector('#firstTable tbody tr', { timeout: SINGA_REQUEST_TIMEOUT_MS }).catch(() => {
         log.warn(`Singa 贷款详情页面未找到订单表格: ${caseId}`);
       });
 
@@ -500,13 +499,13 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
         log.info(`[fetchCasePageByType] 登录成功，session 已保存`);
       }
 
-      page = await getPage(resourceId, url) as unknown as Page;
+      page = await getSingaPage(resourceId, url);
       if (!page) {
         throw new Error('无法初始化页面');
       }
 
       // 等待页面导航完成（处理未登录时的重定向）
-      await page.waitForLoadState('domcontentloaded', { timeout: 10000 }).catch(() => {
+      await page.waitForLoadState('domcontentloaded', { timeout: SINGA_REQUEST_TIMEOUT_MS }).catch(() => {
         log.warn('等待页面 domcontentloaded 超时');
       });
 
@@ -522,7 +521,7 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
           throw new Error(`登录失败: ${loginResult.message || '未知错误'}`);
         }
         // 登录成功后，重新获取 case 列表页面
-        page = await getPage(resourceId, url) as unknown as Page;
+        page = await getSingaPage(resourceId, url);
         if (!page) {
           throw new Error('登录后无法重新初始化页面');
         }
@@ -530,13 +529,13 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
       }
 
       // 等待界面加载完成
-      await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
+      await page.waitForLoadState('networkidle', { timeout: SINGA_REQUEST_TIMEOUT_MS }).catch(() => {
         log.warn('页面加载超时');
       });
 
       // 等待表格数据加载（异步加载）
       try {
-        await page.waitForSelector('tbody tr[class^="assign-"]', { timeout: 10000 });
+        await page.waitForSelector('tbody tr[class^="assign-"]', { timeout: SINGA_REQUEST_TIMEOUT_MS });
         log.info('表格数据已加载');
       } catch {
         log.warn('等待表格数据超时，可能无数据或页面结构变化');

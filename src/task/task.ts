@@ -208,13 +208,18 @@ class ScheduledTaskManager {
             
             log.info(`[ScheduledTaskManager] Found ${businessUsers.length} users for business type: ${businessType}: ${businessUsers.map(u => u.username).join(',')}`);
 
-            // 所有业务保持串行执行，降低外部接口压力
-            for (const user of businessUsers) {
-                await this.userImpl.runUser(user.username, skipSyncedCases).catch(err => {
+            // 所有业务保持串行执行，单个账号失败时继续执行后续账号
+            for (const [index, user] of businessUsers.entries()) {
+                log.info(`[ScheduledTaskManager] Starting user ${user.username} (${index + 1}/${businessUsers.length})`);
+                try {
+                    await this.userImpl.runUser(user.username, skipSyncedCases);
+                    log.info(`[ScheduledTaskManager] Completed user ${user.username} (${index + 1}/${businessUsers.length})`);
+                } catch (err) {
                     log.error(`[ScheduledTaskManager] Failed to run user ${user.username}:`, err);
                     crawlerEndStatus = 'FAILED';
                     failureReasons.push(`user ${user.username}: ${getErrorMessage(err)}`);
-                });
+                    log.warn(`[ScheduledTaskManager] Skipping failed user ${user.username} and continuing with remaining users`);
+                }
             }
             log.info(`[ScheduledTaskManager] Completed scheduled task for business type: ${businessType}`);
         } catch (error) {

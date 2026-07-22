@@ -22,6 +22,8 @@ const browserMap = new Map<string, Browser>();
 
 const contextMap = new Map<string, BrowserContext>();
 
+const PAGE_NAVIGATION_TIMEOUT_MS = 3 * 60 * 1000;
+
 function resolveConfiguredPath(configuredPath: string | undefined): string | undefined {
     if (!configuredPath) {
         return undefined;
@@ -355,10 +357,10 @@ export abstract class DoorEngine<T = any> {
 
 
 
-    public async init(url : string|undefined = undefined) : Promise<Page | undefined> {
+    public async init(url : string|undefined = undefined, timeoutMs: number = PAGE_NAVIGATION_TIMEOUT_MS) : Promise<Page | undefined> {
         log.info("init usePersistentContext is ", this.usePersistentContext);
         if(this.usePersistentContext){
-            return this.initPageByPersistentContext(url);
+            return this.initPageByPersistentContext(url, timeoutMs);
         }
         this.browser = await this.createBrowser();
         if(!this.context){
@@ -374,10 +376,12 @@ export abstract class DoorEngine<T = any> {
         // await this.setupNetworkInterception(this.context);
         
         const page = await this.context.newPage();
+        page.setDefaultTimeout(timeoutMs);
+        page.setDefaultNavigationTimeout(timeoutMs);
         // await page.setViewportSize({ width: this.width, height: this.height });
         if(url){
             try{
-                await page.goto(url);
+                await page.goto(url, { timeout: timeoutMs });
             }catch(error){
                 log.error("init page goto error", error);
                 return page;
@@ -416,16 +420,18 @@ export abstract class DoorEngine<T = any> {
         return this.context;
     }
 
-    async initPageByPersistentContext(url : string|undefined = undefined) : Promise<Page | undefined> {
+    async initPageByPersistentContext(url : string|undefined = undefined, timeoutMs: number = PAGE_NAVIGATION_TIMEOUT_MS) : Promise<Page | undefined> {
         this.context = await this.createContextByPersistentContext();
         if(!this.context){
             return undefined;
         }
         // await this.addAntiDetectionScript(this.context);
         const page = await this.context.newPage();
+        page.setDefaultTimeout(timeoutMs);
+        page.setDefaultNavigationTimeout(timeoutMs);
         // await page.setViewportSize({ width: this.width, height: this.height });
         if(url){
-            await page.goto(url);
+            await page.goto(url, { timeout: timeoutMs });
         }
         this.onRequest(page);
         this.onResponse(page);

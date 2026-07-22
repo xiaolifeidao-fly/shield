@@ -1,7 +1,8 @@
 import { UserInfo } from '@model/user.types';
-import { getPage, getEngineInstance } from '@src/business/common/engine.manager';
+import { getEngineInstance } from '@src/business/common/engine.manager';
 import { Page } from 'playwright-core';
 import log from '../../../utils/logger';
+import { getSingaPage, SINGA_REQUEST_TIMEOUT_MS } from './singa.page';
 
 /**
  * 登录响应接口
@@ -34,18 +35,18 @@ export async function login(userInfo: UserInfo, oriUrl : string): Promise<LoginR
   let page: Page | undefined;
   try {
     // 1. 获取登录页面
-    page = await getPage(resourceId, loginUrl) as unknown as Page;
+    page = await getSingaPage(resourceId, loginUrl);
     if (!page) {
       throw new Error('无法初始化登录页面');
     }
     log.info(`Singa 登录页面: ${page.url()}`);
     // 等待页面加载完成
-    await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {
+    await page.waitForLoadState('networkidle', { timeout: SINGA_REQUEST_TIMEOUT_MS }).catch(() => {
       log.warn('页面网络加载超时，继续执行');
     });
     log.info(`Singa 登录页面加载完成: ${page.url()}`);
     // 等待登录表单加载
-    await page.waitForSelector('#formLogin', { timeout: 10000 });
+    await page.waitForSelector('#formLogin', { timeout: SINGA_REQUEST_TIMEOUT_MS });
     log.info(`Singa 登录表单加载完成: ${page.url()}`);
     // 2. 填写用户名和密码
     await page.fill('#email', username);
@@ -56,7 +57,7 @@ export async function login(userInfo: UserInfo, oriUrl : string): Promise<LoginR
     await Promise.all([
       page.waitForURL(
         (url) => !url.href.includes('/login') && (url.href.includes('/my-dashboard') || url.href.includes('my-dashboard')),
-        { timeout: 30000, waitUntil: 'networkidle' }
+        { timeout: SINGA_REQUEST_TIMEOUT_MS, waitUntil: 'networkidle' }
       ).catch(() => {
         // 如果导航超时，继续检查当前 URL
         return null;
@@ -103,4 +104,3 @@ export async function login(userInfo: UserInfo, oriUrl : string): Promise<LoginR
     };
   }
 }
-

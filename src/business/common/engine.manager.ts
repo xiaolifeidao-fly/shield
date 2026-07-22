@@ -6,6 +6,8 @@ const engineInstances: Map<string, EngineInstance> = new Map();
 
 const pageInstances: Map<string, Page> = new Map();
 
+const PAGE_NAVIGATION_TIMEOUT_MS = 3 * 60 * 1000;
+
 
 export async function getEngineInstance(resourceId: string): Promise<EngineInstance> {
     if (engineInstances.has(resourceId)) {
@@ -31,22 +33,24 @@ export async function releaseEngineInstance(resourceId: string): Promise<void> {
 }
 
 
-export async function getPage(resourceId: string, url: string): Promise<Page | undefined> {
+export async function getPage(resourceId: string, url: string, timeoutMs: number = PAGE_NAVIGATION_TIMEOUT_MS): Promise<Page | undefined> {
     let page = pageInstances.get(resourceId);
     if (page) {
         if(page.isClosed()) {
             const engine = await getEngineInstance(resourceId);
-            page = await engine.init(url);
+            page = await engine.init(url, timeoutMs);
             if(page) {
                 pageInstances.set(resourceId, page);
             }
             return page;
         }
-        await page.goto(url);
+        page.setDefaultTimeout(timeoutMs);
+        page.setDefaultNavigationTimeout(timeoutMs);
+        await page.goto(url, { timeout: timeoutMs });
         return page;
     }
     const engine = await getEngineInstance(resourceId);
-    page = await engine.init(url);
+    page = await engine.init(url, timeoutMs);
     if(page) {  
         pageInstances.set(resourceId, page);
     }
