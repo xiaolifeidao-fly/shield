@@ -40,11 +40,6 @@ export async function login(userInfo: UserInfo, oriUrl : string): Promise<LoginR
       throw new Error('无法初始化登录页面');
     }
     log.info(`Singa 登录页面: ${page.url()}`);
-    // 等待页面加载完成
-    await page.waitForLoadState('networkidle', { timeout: SINGA_REQUEST_TIMEOUT_MS }).catch(() => {
-      log.warn('页面网络加载超时，继续执行');
-    });
-    log.info(`Singa 登录页面加载完成: ${page.url()}`);
     // 等待登录表单加载
     await page.waitForSelector('#formLogin', { timeout: SINGA_REQUEST_TIMEOUT_MS });
     log.info(`Singa 登录表单加载完成: ${page.url()}`);
@@ -57,7 +52,7 @@ export async function login(userInfo: UserInfo, oriUrl : string): Promise<LoginR
     await Promise.all([
       page.waitForURL(
         (url) => !url.href.includes('/login') && (url.href.includes('/my-dashboard') || url.href.includes('my-dashboard')),
-        { timeout: SINGA_REQUEST_TIMEOUT_MS, waitUntil: 'networkidle' }
+        { timeout: SINGA_REQUEST_TIMEOUT_MS, waitUntil: 'domcontentloaded' }
       ).catch(() => {
         // 如果导航超时，继续检查当前 URL
         return null;

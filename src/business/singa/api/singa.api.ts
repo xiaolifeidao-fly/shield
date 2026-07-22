@@ -262,13 +262,13 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
         }
       }
 
-      await page.waitForLoadState('domcontentloaded', { timeout: SINGA_REQUEST_TIMEOUT_MS }).catch(() => {
-        log.warn(`Singa 贷款详情页面加载 domcontentloaded 超时: ${caseId}`);
-      });
+      await page.waitForSelector('#firstTable tbody', { timeout: SINGA_REQUEST_TIMEOUT_MS });
 
-      await page.waitForSelector('#firstTable tbody tr', { timeout: SINGA_REQUEST_TIMEOUT_MS }).catch(() => {
-        log.warn(`Singa 贷款详情页面未找到订单表格: ${caseId}`);
-      });
+      const detailRowCount = await page.locator('#firstTable tbody tr').count();
+      if (detailRowCount === 0) {
+        log.info(`Singa 贷款详情页面无订单数据: ${caseId}`);
+        return null;
+      }
 
       const detail = await evaluateSerializedScript<{
         productName: string;
@@ -504,11 +504,6 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
         throw new Error('无法初始化页面');
       }
 
-      // 等待页面导航完成（处理未登录时的重定向）
-      await page.waitForLoadState('domcontentloaded', { timeout: SINGA_REQUEST_TIMEOUT_MS }).catch(() => {
-        log.warn('等待页面 domcontentloaded 超时');
-      });
-
       // 检查是否需要重新登录（兜底逻辑，防止 session 失效）
       // singaLogin 内部会保存 session，这里不需要再保存
       const currentUrl = page.url();
@@ -528,17 +523,17 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
         log.info(`[fetchCasePageByType] 重新登录成功，session 已保存`);
       }
 
-      // 等待界面加载完成
-      await page.waitForLoadState('networkidle', { timeout: SINGA_REQUEST_TIMEOUT_MS }).catch(() => {
-        log.warn('页面加载超时');
-      });
-
-      // 等待表格数据加载（异步加载）
-      try {
-        await page.waitForSelector('tbody tr[class^="assign-"]', { timeout: SINGA_REQUEST_TIMEOUT_MS });
-        log.info('表格数据已加载');
-      } catch {
-        log.warn('等待表格数据超时，可能无数据或页面结构变化');
+      // 页面由服务端直接渲染；表格结构出现后即可区分有数据和空数据。
+      const caseTableBody = page
+        .locator('.table-responsive > table', { hasText: 'Order #' })
+        .first()
+        .locator('tbody');
+      await caseTableBody.waitFor({ state: 'attached', timeout: SINGA_REQUEST_TIMEOUT_MS });
+      const caseRowCount = await caseTableBody.locator('tr[class^="assign-"]').count();
+      if (caseRowCount === 0) {
+        log.info(`${caseType} 页面加载完成，无案例数据`);
+      } else {
+        log.info(`${caseType} 页面加载完成，共检测到 ${caseRowCount} 条案例数据`);
       }
 
       const username = user.username;

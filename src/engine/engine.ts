@@ -384,7 +384,7 @@ export abstract class DoorEngine<T = any> {
                 await page.goto(url, { timeout: timeoutMs });
             }catch(error){
                 log.error("init page goto error", error);
-                return page;
+                throw error;
             }
         }
         this.onRequest(page);
