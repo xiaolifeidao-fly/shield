@@ -19,6 +19,7 @@ const MAX_CAPTCHA_RETRIES = 10;
 const CAPTCHA_RETENTION_DAYS = 3;
 const CAPTCHA_IMAGE_LOAD_TIMEOUT_MS = 10000;
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const LOGIN_SUCCESS_PATH_PREFIX = '/admin-web';
 
 /**
  * 获取验证码图片存储根目录: ~/.config/shield/captcha/
@@ -233,15 +234,23 @@ async function clickLoginButton(page: Page): Promise<void> {
 /**
  * 检测是否登录成功（URL 不再包含 /login）
  */
+function isLoginSuccessUrl(url: string): boolean {
+  try {
+    return new URL(url).pathname.startsWith(LOGIN_SUCCESS_PATH_PREFIX);
+  } catch {
+    return false;
+  }
+}
+
 async function checkLoginSuccess(page: Page, timeout: number = 5000): Promise<boolean> {
   try {
     await page.waitForURL(
-      (url) => !url.href.includes('/login'),
+      (url) => isLoginSuccessUrl(url.href) || !url.href.includes('/login'),
       { timeout }
     );
     return true;
   } catch {
-    return false;
+    return isLoginSuccessUrl(page.url());
   }
 }
 
@@ -314,9 +323,10 @@ export async function login(userInfo: UserInfo): Promise<LoginResponse> {
         // 6. 等待并检查登录结果
         await page.waitForTimeout(2000);
         const success = await checkLoginSuccess(page, 5000);
+        const currentUrl = page.url();
 
-        if (success) {
-          log.info(`[UKU] login successful for ${username} after ${attempt} attempt(s)`);
+        if (success || isLoginSuccessUrl(currentUrl)) {
+          log.info(`[UKU] login successful for ${username} after ${attempt} attempt(s), url=${currentUrl}`);
 
           // 提取 cookies
           const cookies = await page.context().cookies('https://collection.ukuindo.com');
@@ -336,7 +346,6 @@ export async function login(userInfo: UserInfo): Promise<LoginResponse> {
         }
 
         // 登录失败，检查是否仍在登录页
-        const currentUrl = page.url();
         if (currentUrl.includes('/login')) {
           // 可能是验证码错误，刷新验证码重试
           lastError = `验证码可能错误，当前URL: ${currentUrl}`;

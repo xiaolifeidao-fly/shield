@@ -13,6 +13,7 @@ type PythonCommand = {
 
 const BUNDLED_DDDDOCR_SCRIPT = 'python/ddddocr-demo/recognize.py';
 const LEGACY_DDDDOCR_SCRIPT = '/Users/hitol/work/code/indo/ddddocr-demo/recognize.py';
+const DEFAULT_DDDDOCR_TIMEOUT_MS = 120000;
 
 function canRun(command: string, args: string[] = []): boolean {
   try {
@@ -84,7 +85,10 @@ export async function recognizeCaptcha(imagePath: string): Promise<string> {
 
   const script = findScript();
   const python = findPython(script);
-  const timeout = Number(process.env.DDDDOCR_TIMEOUT_MS || 30000);
+  const configuredTimeout = Number(process.env.DDDDOCR_TIMEOUT_MS);
+  const timeout = Number.isFinite(configuredTimeout) && configuredTimeout > 0
+    ? configuredTimeout
+    : DEFAULT_DDDDOCR_TIMEOUT_MS;
 
   try {
     const { stdout } = await execFileAsync(
