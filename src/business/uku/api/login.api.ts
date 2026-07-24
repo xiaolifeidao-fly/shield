@@ -17,6 +17,8 @@ export interface LoginResponse {
 
 const MAX_CAPTCHA_RETRIES = 10;
 const CAPTCHA_RETENTION_DAYS = 3;
+const CAPTCHA_IMAGE_LOAD_TIMEOUT_MS = 10000;
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 /**
  * 获取验证码图片存储根目录: ~/.config/shield/captcha/
@@ -80,10 +82,51 @@ async function downloadCaptchaImage(page: Page, username: string): Promise<strin
 
   // 方式1: 截图验证码元素（最可靠，捕获的是浏览器渲染后的实际图像）
   const captchaImg = page.locator('#imgCode').first();
-  const buffer = await captchaImg.screenshot({ type: 'png' });
-  fs.writeFileSync(filePath, buffer);
+  await captchaImg.waitFor({ state: 'visible', timeout: CAPTCHA_IMAGE_LOAD_TIMEOUT_MS });
+  await captchaImg.evaluate(async (img: any) => {
+    if (!img.complete || img.naturalWidth === 0) {
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error('captcha image load timeout'));
+        }, 10000);
 
-  log.info(`[UKU] captcha image saved: ${filePath}`);
+        img.addEventListener('load', () => {
+          clearTimeout(timer);
+          resolve();
+        }, { once: true });
+        img.addEventListener('error', () => {
+          clearTimeout(timer);
+          reject(new Error('captcha image load failed'));
+        }, { once: true });
+      });
+    }
+
+    if (typeof img.decode === 'function') {
+      await img.decode();
+    }
+  });
+
+  const buffer = await captchaImg.screenshot({ type: 'png' });
+  if (buffer.length < PNG_SIGNATURE.length || !buffer.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
+    throw new Error('captcha screenshot is not a valid PNG image');
+  }
+
+  await fs.promises.writeFile(filePath, buffer, { flag: 'wx' });
+
+  // 重新打开文件校验，确保写入句柄已关闭且其他进程可以读取完整内容。
+  const savedImage = await fs.promises.open(filePath, 'r');
+  try {
+    const stat = await savedImage.stat();
+    const signature = Buffer.alloc(PNG_SIGNATURE.length);
+    const { bytesRead } = await savedImage.read(signature, 0, signature.length, 0);
+    if (stat.size !== buffer.length || bytesRead !== signature.length || !signature.equals(PNG_SIGNATURE)) {
+      throw new Error(`captcha image is incomplete: expected ${buffer.length} bytes, got ${stat.size}`);
+    }
+  } finally {
+    await savedImage.close();
+  }
+
+  log.info(`[UKU] captcha image ready: ${filePath} (${buffer.length} bytes)`);
   return filePath;
 }
 

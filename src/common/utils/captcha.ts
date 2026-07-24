@@ -2,6 +2,7 @@ import { execFile, execFileSync } from 'child_process';
 import { existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { promisify } from 'util';
+import log from '@src/utils/logger';
 
 const execFileAsync = promisify(execFile);
 
@@ -95,9 +96,26 @@ export async function recognizeCaptcha(imagePath: string): Promise<string> {
         windowsHide: true,
       },
     );
-    return stdout.trim();
+    const result = stdout.trim();
+    log.info(`[Captcha] Python recognition result: ${JSON.stringify(result)}`);
+    return result;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`captcha recognition failed: ${message}`);
+    const commandError = error as Error & {
+      code?: string | number;
+      killed?: boolean;
+      signal?: string;
+      stderr?: string | Buffer;
+    };
+    const details = [commandError.message || String(error)];
+    if (commandError.code !== undefined) details.push(`exit code: ${commandError.code}`);
+    if (commandError.killed) details.push(`process killed (timeout: ${timeout}ms)`);
+    if (commandError.signal) details.push(`signal: ${commandError.signal}`);
+
+    const stderr = typeof commandError.stderr === 'string'
+      ? commandError.stderr.trim()
+      : commandError.stderr?.toString().trim();
+    if (stderr && !commandError.message.includes(stderr)) details.push(`stderr: ${stderr}`);
+
+    throw new Error(`captcha recognition failed: ${details.join('; ')}`);
   }
 }
