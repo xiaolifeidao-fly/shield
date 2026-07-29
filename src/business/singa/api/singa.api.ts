@@ -432,8 +432,13 @@ export class SingaBusinessApi extends BaseBusinessApi<SingaCase> {
     // resourceId = username + businessType
     const resourceId = `${user.username}_${user.businessType || 'singa'}`;
 
-    // 支持的页面类型
-    const types = ["need-follow-up", "already-follow-up"];
+    // 同步服务按类型独立分页；未指定类型时保留合并查询兼容性。
+    const supportedTypes = ["need-follow-up", "already-follow-up"];
+    const requestedType = typeof params.caseType === 'string' ? params.caseType : undefined;
+    if (requestedType && !supportedTypes.includes(requestedType)) {
+      throw new Error(`不支持的 Singa 案例类型: ${requestedType}`);
+    }
+    const types = requestedType ? [requestedType] : supportedTypes;
 
     // 存储所有类型的 case
     let allCases: SingaCase[] = [];

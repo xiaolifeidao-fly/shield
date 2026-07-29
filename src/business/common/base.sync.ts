@@ -20,6 +20,12 @@ interface ResumeData {
   pageNum: number; // 页码
 }
 
+interface SyncPaginationOptions {
+  startPageNum?: number;
+  totalCountOffset?: number;
+  finalize?: boolean;
+}
+
 /**
  * 运行状态内存存储（username -> running状态）
  */
@@ -419,8 +425,17 @@ export abstract class BaseCaseSyncService {
     return pageResponse;
   }
 
-  async syncUserCasesByParams(userInfo: UserInfo, params: {[key: string]: any } = {}, stats: SyncStats, cache: SyncCache, enableDeduplication: boolean = true, enableResume: boolean = false){
-      let pageNum: number = 1;
+  async syncUserCasesByParams(
+    userInfo: UserInfo,
+    params: {[key: string]: any } = {},
+    stats: SyncStats,
+    cache: SyncCache,
+    enableDeduplication: boolean = true,
+    enableResume: boolean = false,
+    paginationOptions: SyncPaginationOptions = {}
+  ){
+      let pageNum: number = paginationOptions.startPageNum ?? 1;
+      const totalCountOffset = paginationOptions.totalCountOffset ?? 0;
       const pageSize = 20;
       log.info(`saveUserSyncStats: ${JSON.stringify(stats)}`);
       const username = userInfo.username;
@@ -442,14 +457,15 @@ export abstract class BaseCaseSyncService {
         
         
         log.info(`syncPageCases pageNum: ${pageNum} pageResponse: ${JSON.stringify(pageResponse.total)} total records : ${pageResponse?.records?.length} cost: ${Math.round((Date.now() - startTime) / 1000)}s`);
-        stats.totalCount = pageResponse.total;
+        const accumulatedTotal = totalCountOffset + pageResponse.total;
+        stats.totalCount = accumulatedTotal;
         saveUserSyncStats(username, stats);
         if (!pageResponse?.records || pageResponse?.records?.length === 0) {
           break;
         }
 
 
-        const stopped = await this.syncPageCases(username, pageResponse.total, pageResponse.records, cache, stats, enableDeduplication);
+        const stopped = await this.syncPageCases(username, accumulatedTotal, pageResponse.records, cache, stats, enableDeduplication);
         
         stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
         saveUserSyncStats(username, stats);
@@ -478,12 +494,15 @@ export abstract class BaseCaseSyncService {
         }
       }
 
-      stats.running = false;
+      const stopped = getStopFlag(username);
+      stats.running = paginationOptions.finalize === false && !stopped;
       stats.duration = Math.round((Date.now() - startTimeMs) / 1000);
-      stats.lastSyncTime = new Date().toISOString();
+      if (paginationOptions.finalize !== false || stopped) {
+        stats.lastSyncTime = new Date().toISOString();
+      }
       saveUserSyncStats(username, stats);
       
-      if (enableResume) {
+      if (enableResume && paginationOptions.finalize !== false) {
         clearUserResumePageNum(username);
         log.info(`Sync completed, cleared resume pageNum for user ${username}`);
       }
