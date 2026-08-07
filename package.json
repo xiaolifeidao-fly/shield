@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "npx webpack --config webpack.config.cjs --mode development && node dist/main.js",
     "dev:tsx": "npx tsx src/main.ts",
+    "test": "tsx --test test/**/*.test.ts",
     "build": "npx webpack --config webpack.config.cjs --mode production",
     "start": "node dist/main.js",
     "dev:watch": "npx webpack --config webpack.config.cjs --mode development --watch",
